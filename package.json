@@ -10,9 +10,7 @@
     "d3-ease": "^1.0.3",
     "exenv": "^1.2.0",
     "prop-types": "^15.6.0",
-    "react-move": "^2.7.0"
-  },
-  "devDependencies": {
+    "react-move": "^2.7.0",
     "@babel/cli": "^7.0.0-beta.42",
     "@babel/core": "^7.0.0-beta.42",
     "@babel/plugin-proposal-object-rest-spread": "^7.0.0",
@@ -64,6 +62,7 @@
     "react-dom": "^0.14.9 || ^15.3.0 || ^16.0.0"
   },
   "scripts": {
+    "postinstall": "npm run build",
     "build": "builder concurrent --buffer build-lib build-es",
     "build-babel": "babel src",
     "build-dist": "webpack --config webpack.dist.config.js --mode production",
