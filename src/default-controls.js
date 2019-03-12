@@ -62,18 +62,22 @@ export class NextButton extends React.Component {
       let lastSlideOffset = 0;
 
       switch (cellAlign) {
+        case 'left':
+          slidesShowing = (slidesToShow + 1) * 0.5;
+          lastSlideOffset = Math.floor(slidesToShow * 0.5) + 1;
+          break;
         case 'center':
           slidesShowing = (slidesToShow - 1) * 0.5;
-          lastSlideOffset = Math.floor(slidesToShow * 0.5) - 1;
+          lastSlideOffset = Math.floor(slidesToShow * 0.5);
           break;
         case 'right':
-          slidesShowing = 1;
+          slidesShowing = Math.ceil(slidesToShow) - 2;
           break;
       }
-
       if (slidesToShow > 1) {
-        buttonDisabled =
-          currentSlide + slidesShowing > lastSlideIndex + lastSlideOffset;
+        const seenSlides = Math.round(currentSlide + slidesShowing);
+        const totalSlides = lastSlideIndex + lastSlideOffset;
+        buttonDisabled = seenSlides >= totalSlides;
       } else {
         buttonDisabled = currentSlide + 1 > lastSlideIndex;
       }
