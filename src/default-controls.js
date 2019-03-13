@@ -63,7 +63,7 @@ export class NextButton extends React.Component {
 
       switch (cellAlign) {
         case 'left':
-          slidesShowing = (slidesToShow + 1) * 0.5;
+          slidesShowing = Math.ceil(slidesToShow * 0.5);
           lastSlideOffset = Math.floor(slidesToShow * 0.5) + 1;
           break;
         case 'center':
