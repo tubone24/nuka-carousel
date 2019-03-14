@@ -47,12 +47,7 @@ export class NextButton extends React.Component {
   }
 
   nextButtonDisabled(params) {
-    const {
-      wrapAround,
-      slidesToShow,
-      currentSlide,
-      slideCount
-    } = params;
+    const { wrapAround, slidesToShow, currentSlide, slideCount } = params;
     let buttonDisabled = false;
     if (!wrapAround) {
       if (slidesToShow > 1) {
