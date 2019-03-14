@@ -688,10 +688,7 @@ export default class Carousel extends React.Component {
         return;
       }
       const offset = this.state.currentSlide + this.state.slidesToScroll;
-      const nextSlideIndex =
-        this.props.cellAlign !== 'left'
-          ? offset
-          : Math.min(offset, childrenCount - slidesToShow);
+      const nextSlideIndex = Math.floor(offset);
       this.goToSlide(nextSlideIndex);
     }
   }

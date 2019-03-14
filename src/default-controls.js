@@ -51,34 +51,15 @@ export class NextButton extends React.Component {
       wrapAround,
       slidesToShow,
       currentSlide,
-      cellAlign,
       slideCount
     } = params;
-
     let buttonDisabled = false;
     if (!wrapAround) {
-      const lastSlideIndex = slideCount - 1;
-      let slidesShowing = slidesToShow;
-      let lastSlideOffset = 0;
-
-      switch (cellAlign) {
-        case 'left':
-          slidesShowing = Math.ceil(slidesToShow * 0.5);
-          lastSlideOffset = Math.floor(slidesToShow * 0.5) + 1;
-          break;
-        case 'center':
-          slidesShowing = (slidesToShow - 1) * 0.5;
-          lastSlideOffset = Math.floor(slidesToShow * 0.5);
-          break;
-        case 'right':
-          slidesShowing = Math.ceil(slidesToShow) - 2;
-          break;
-      }
       if (slidesToShow > 1) {
-        const seenSlides = Math.round(currentSlide + slidesShowing);
-        const totalSlides = lastSlideIndex + lastSlideOffset;
-        buttonDisabled = seenSlides >= totalSlides;
+        const remainingSlides = slideCount - currentSlide - 1;
+        buttonDisabled = remainingSlides === 0;
       } else {
+        const lastSlideIndex = slideCount - 1;
         buttonDisabled = currentSlide + 1 > lastSlideIndex;
       }
     }
