@@ -92,23 +92,39 @@ export class NextButton extends React.Component {
 
 export class PagingDots extends React.Component {
   getDotIndexes(slideCount, slidesToScroll, slidesToShow, cellAlign) {
+    // 
     const dotIndexes = [];
-    let lastDotIndex = slideCount - slidesToShow;
+    const trueSlidesToShow = slidesToShow > 1.9 ? slidesToShow : 1;
+    console.log('true slides to show: ', trueSlidesToShow);
+    let lastDotIndex = slideCount - 1;
+    // const lastDotIndex = slideCount - 1; // this fixes anything < 2
+    console.log('slideCount: ', slideCount);
+    console.log('lastDotIndex: ', lastDotIndex);
+    // switch (cellAlign) {
+    //   case 'center':
+    //     break;
+    //   case 'right':
+    //     lastDotIndex += slidesToShow - 1;
+    //     break;
+    // }
 
-    switch (cellAlign) {
-      case 'center':
-      case 'right':
-        lastDotIndex += slidesToShow - 1;
-        break;
-    }
     if (lastDotIndex < 0) {
       return [0];
     }
+    console.log('slides to scroll by: ', slidesToScroll);
 
-    for (let i = 0; i < lastDotIndex; i += slidesToScroll) {
+    for (let i = 0; i < lastDotIndex; i += slidesToScroll) { 
+      // changing this to 1 fixes everything < 2
       dotIndexes.push(i);
     }
+    console.log('most of the indexes: ', dotIndexes);
+    // console.log('quick maths: ', dotIndexes.length - 1);
+    // console.log('this is the current last: ', dotIndexes[dotIndexes.length - 1]);
+    // console.log('last dot! ', lastDotIndex);
+    // if (lastDotIndex > dotIndexes[dotIndexes.length - 1]) {
     dotIndexes.push(lastDotIndex);
+    // }
+    console.log('all dem indexes: ', dotIndexes);
     return dotIndexes;
   }
 

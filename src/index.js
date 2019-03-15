@@ -666,14 +666,13 @@ export default class Carousel extends React.Component {
 
   nextSlide() {
     const childrenCount = this.state.slideCount;
-    let slidesToShow = this.state.slidesToShow;
-
+    let { slidesToShow } = this.state;
     if (this.props.slidesToScroll === 'auto') {
       slidesToShow = this.state.slidesToScroll;
     }
 
     if (
-      this.state.currentSlide >= childrenCount - slidesToShow &&
+      this.state.currentSlide > childrenCount - slidesToShow &&
       !this.props.wrapAround &&
       this.props.cellAlign === 'left'
     ) {
@@ -683,12 +682,20 @@ export default class Carousel extends React.Component {
     if (this.props.wrapAround) {
       this.goToSlide(this.state.currentSlide + this.state.slidesToScroll);
     } else {
+      // console.log('go to slide: ', this.state.currentSlide, this.state.slidesToScroll);
+      // console.log('slide width: ', this.props.slideWidth);
       if (this.props.slideWidth !== 1) {
         this.goToSlide(this.state.currentSlide + this.state.slidesToScroll);
         return;
       }
       const offset = this.state.currentSlide + this.state.slidesToScroll;
+      // const nextSlideIndex =
+      //   this.props.cellAlign !== 'left'
+      //     ? offset
+      //     : Math.min(offset, childrenCount - slidesToShow);
       const nextSlideIndex = Math.floor(offset);
+      // console.log('offset: ', offset);
+      // console.log('next slide: ', nextSlideIndex);
       this.goToSlide(nextSlideIndex);
     }
   }
