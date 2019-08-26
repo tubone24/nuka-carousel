@@ -563,6 +563,12 @@ export default class Carousel extends React.Component {
   getTargetLeft(touchOffset, slide) {
     let offset;
     const target = slide || this.state.currentSlide;
+    const firstSlide = target === 0;
+    const lastSlide =
+      this.state.currentSlide > 0 &&
+      target + this.state.slidesToScroll >= this.state.slideCount;
+    let left = this.state.slideWidth * target;
+
     switch (this.state.cellAlign) {
       case 'left': {
         offset = 0;
@@ -570,22 +576,20 @@ export default class Carousel extends React.Component {
         break;
       }
       case 'center': {
-        offset = (this.state.frameWidth - this.state.slideWidth) / 2;
+        target === 0
+          ? (offset = 0)
+          : (offset = (this.state.frameWidth - this.state.slideWidth) / 2);
         offset -= this.props.cellSpacing * target;
         break;
       }
       case 'right': {
-        offset = this.state.frameWidth - this.state.slideWidth;
+        target === 0
+          ? (offset = 0)
+          : (offset = this.state.frameWidth - this.state.slideWidth);
         offset -= this.props.cellSpacing * target;
         break;
       }
     }
-
-    let left = this.state.slideWidth * target;
-
-    const lastSlide =
-      this.state.currentSlide > 0 &&
-      target + this.state.slidesToScroll >= this.state.slideCount;
 
     if (
       lastSlide &&
@@ -719,7 +723,6 @@ export default class Carousel extends React.Component {
     }
 
     this.props.beforeSlide(this.state.currentSlide, index);
-
     this.setState(
       {
         currentSlide: index

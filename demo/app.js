@@ -39,16 +39,22 @@ class App extends React.Component {
     return (
       <div style={{ width: '50%', margin: 'auto' }}>
         <Carousel
-          slidesToShow={this.state.slidesToShow}
-          slidesToScroll={this.state.slidesToScroll}
-          withoutControls={this.state.withoutControls}
-          transitionMode={this.state.transitionMode}
-          cellAlign={this.state.cellAlign}
-          animation={this.state.animation}
-          zoomScale={Number(this.state.zoomScale || 0)}
-          wrapAround={this.state.wrapAround}
-          slideIndex={this.state.slideIndex}
-          heightMode={this.state.heightMode}
+          swiping
+          cellSpacing={3}
+          cellAlign="center"
+          slidesToShow={1.1}
+          withoutControls
+          disableEdgeSwiping
+          // slidesToShow={this.state.slidesToShow}
+          // slidesToScroll={this.state.slidesToScroll}
+          // withoutControls={this.state.withoutControls}
+          // transitionMode={this.state.transitionMode}
+          // cellAlign={this.state.cellAlign}
+          // animation={this.state.animation}
+          // zoomScale={Number(this.state.zoomScale || 0)}
+          // wrapAround={this.state.wrapAround}
+          // slideIndex={this.state.slideIndex}
+          // heightMode={this.state.heightMode}
           renderTopCenterControls={({ currentSlide }) => (
             <div
               style={{
