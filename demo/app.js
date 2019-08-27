@@ -2,7 +2,7 @@ import Carousel from '../src/index';
 import React from 'react';
 import ReactDom from 'react-dom';
 
-const colors = ['7732bb', '047cc0', '00884b', 'e3bc13', 'db7c00', 'aa231f'];
+const colors = ['bf2a2e', 'c5311e', 'ad6c25', '318467', '235bba', '371e87'];
 
 class App extends React.Component {
   constructor() {
@@ -69,6 +69,7 @@ class App extends React.Component {
             {colors.slice(0, this.state.length).map((color, index) => (
               <div
                 key={color}
+                onClick={this.handleClick}
                 style={{
                   backgroundColor: `#${color}`,
                   color: '#fff',
@@ -82,7 +83,6 @@ class App extends React.Component {
                       ? 100 * (index + 1)
                       : 400
                 }}
-                key={color}
               >
                 Slide {index + 1}
               </div>
