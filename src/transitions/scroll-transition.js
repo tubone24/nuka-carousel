@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-
 const MIN_ZOOM_SCALE = 0;
 const MAX_ZOOM_SCALE = 1;
 
