@@ -187,8 +187,8 @@ export default class ScrollTransition3D extends React.Component {
       marginRight: this.props.vertical ? 'auto' : this.props.cellSpacing / 2,
       marginTop: this.props.vertical ? this.props.cellSpacing / 2 : 'auto',
       MozBoxSizing: 'border-box',
-      position: 'absolute',
-      top: this.props.vertical ? targetPosition : 0,
+      // position: 'absolute',
+      // top: this.props.vertical ? targetPosition : 0,
       transform: `scale(${transformScale})`,
       transition:
         'left 0.4s ease-out, transform 0.4s ease-out, opacity 0.4s ease-out',
@@ -211,9 +211,10 @@ export default class ScrollTransition3D extends React.Component {
         : `${this.props.slideListMargin}px ${(this.props.cellSpacing / 2) *
             -1}px`,
       padding: 0,
-      height: this.props.vertical
-        ? listWidth + spacingOffset
-        : this.props.slideHeight,
+      height: 'auto',
+      // height: this.props.vertical
+      //   ? listWidth + spacingOffset
+      //   : this.props.slideHeight,
       width: this.props.vertical ? 'auto' : '100%',
       cursor: this.props.dragging === true ? 'pointer' : 'inherit',
       boxSizing: 'border-box',

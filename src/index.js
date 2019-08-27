@@ -797,7 +797,7 @@ export default class Carousel extends React.Component {
   }
 
   onReadyStateChange() {
-    this.setDimensions();
+    // this.setDimensions();
   }
 
   onVisibilityChange() {
@@ -872,6 +872,8 @@ export default class Carousel extends React.Component {
         frameWidth / (slideWidth + props.cellSpacing)
       );
     }
+
+    console.log('setState slide height: ', slideHeight);
 
     this.setState(
       {

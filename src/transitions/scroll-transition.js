@@ -123,8 +123,8 @@ export default class ScrollTransition extends React.Component {
       marginRight: this.props.vertical ? 'auto' : this.props.cellSpacing / 2,
       marginTop: this.props.vertical ? this.props.cellSpacing / 2 : 'auto',
       MozBoxSizing: 'border-box',
-      position: 'absolute',
-      top: this.props.vertical ? targetPosition : 0,
+      // position: 'absolute',
+      // top: this.props.vertical ? targetPosition : 0,
       transform: `scale(${transformScale})`,
       transition: 'transform .4s linear',
       verticalAlign: 'top',
@@ -149,9 +149,10 @@ export default class ScrollTransition extends React.Component {
         ? `${(this.props.cellSpacing / 2) * -1}px 0px`
         : `0px ${(this.props.cellSpacing / 2) * -1}px`,
       padding: 0,
-      height: this.props.vertical
-        ? listWidth + spacingOffset
-        : this.props.slideHeight,
+      height: 'auto',
+      // height: this.props.vertical
+      //   ? listWidth + spacingOffset
+      //   : this.props.slideHeight,
       width: this.props.vertical ? 'auto' : listWidth + spacingOffset,
       cursor: this.props.dragging === true ? 'pointer' : 'inherit',
       boxSizing: 'border-box',

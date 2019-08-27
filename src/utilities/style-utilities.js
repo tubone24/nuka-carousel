@@ -113,7 +113,8 @@ export const getFrameStyles = (
   return {
     boxSizing: 'border-box',
     display: 'block',
-    height: propVertical ? stateFrameWidth || 'initial' : '100%',
+    // height: propVertical ? stateFrameWidth || 'initial' : '100%',
+    height: 'auto',
     margin: propFramePadding,
     MozBoxSizing: 'border-box',
     msTransform: 'translate(0, 0)',

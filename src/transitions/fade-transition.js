@@ -67,6 +67,7 @@ export default class FadeTransition extends React.Component {
     return {
       boxSizing: 'border-box',
       display: 'block',
+      float: 'left',
       height: 'auto',
       left: data[index] ? data[index].left : 0,
       listStyleType: 'none',
@@ -76,8 +77,9 @@ export default class FadeTransition extends React.Component {
       marginTop: 'auto',
       MozBoxSizing: 'border-box',
       opacity: data[index] ? data[index].opacity : 0,
-      position: 'absolute',
-      top: 0,
+      // position: 'absolute',
+      // top: 0,
+      transform: `translate(0, ${-100 * index}%)`,
       verticalAlign: 'top',
       visibility: data[index] ? 'inherit' : 'hidden',
       width: this.props.slideWidth
@@ -91,7 +93,8 @@ export default class FadeTransition extends React.Component {
       boxSizing: 'border-box',
       cursor: this.props.dragging === true ? 'pointer' : 'inherit',
       display: 'block',
-      height: this.props.slideHeight,
+      height: 'auto',
+      // height: this.props.slideHeight,
       margin: this.props.vertical
         ? `${(this.props.cellSpacing / 2) * -1}px 0px`
         : `0px ${(this.props.cellSpacing / 2) * -1}px`,
