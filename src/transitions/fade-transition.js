@@ -10,8 +10,8 @@ export default function FadeTransition({
   dragging,
   slideCount,
   slideHeight,
-  slideWidth,
   slidesToShow,
+  slideWidth,
   vertical
 }) {
   const containerStyles = useMemo(

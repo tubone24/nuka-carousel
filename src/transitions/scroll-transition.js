@@ -1,17 +1,30 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 
 const MIN_ZOOM_SCALE = 0;
 const MAX_ZOOM_SCALE = 1;
 
-export default class ScrollTransition extends React.Component {
-  constructor(props) {
-    super(props);
-
-    this.getListStyles = this.getListStyles.bind(this);
-  }
-
-  getSlideDirection(start, end, isWrapping) {
+export default function ScrollTransition({
+  animation,
+  cellSpacing,
+  children,
+  currentSlide,
+  deltaX,
+  deltaY,
+  dragging,
+  isWrappingAround,
+  left,
+  slideCount,
+  slideHeight,
+  slideOffset,
+  slidesToShow,
+  slideWidth,
+  top,
+  vertical,
+  wrapAround,
+  zoomScale
+}) {
+  const getSlideDirection = function(start, end, isWrapping) {
     let direction = 0;
     if (start === end) return direction;
 
@@ -22,43 +35,40 @@ export default class ScrollTransition extends React.Component {
     }
 
     return direction;
-  }
+  };
 
   /* eslint-disable complexity */
-  getSlideTargetPosition(index, positionValue) {
-    let targetPosition =
-      (this.props.slideWidth + this.props.cellSpacing) * index;
+  const getSlideTargetPosition = function(index, positionValue) {
+    let targetPosition = (slideWidth + cellSpacing) * index;
     const startSlide = Math.min(
-      Math.abs(Math.floor(positionValue / this.props.slideWidth)),
-      this.props.slideCount - 1
+      Math.abs(Math.floor(positionValue / slideWidth)),
+      slideCount - 1
     );
 
     let offset = 0;
 
     if (
-      this.props.animation === 'zoom' &&
-      (this.props.currentSlide === index + 1 ||
-        (this.props.currentSlide === 0 &&
-          index === this.props.children.length - 1))
+      animation === 'zoom' &&
+      (currentSlide === index + 1 ||
+        (currentSlide === 0 && index === children.length - 1))
     ) {
-      offset = this.props.slideOffset;
+      offset = slideOffset;
     } else if (
-      this.props.animation === 'zoom' &&
-      (this.props.currentSlide === index - 1 ||
-        (this.props.currentSlide === this.props.children.length - 1 &&
-          index === 0))
+      animation === 'zoom' &&
+      (currentSlide === index - 1 ||
+        (currentSlide === children.length - 1 && index === 0))
     ) {
-      offset = -this.props.slideOffset;
+      offset = -slideOffset;
     }
 
-    if (this.props.wrapAround && index !== startSlide) {
-      const direction = this.getSlideDirection(
+    if (wrapAround && index !== startSlide) {
+      const direction = getSlideDirection(
         startSlide,
-        this.props.currentSlide,
-        this.props.isWrappingAround
+        currentSlide,
+        isWrappingAround
       );
-      let slidesBefore = Math.floor((this.props.slideCount - 1) / 2);
-      let slidesAfter = this.props.slideCount - slidesBefore - 1;
+      let slidesBefore = Math.floor((slideCount - 1) / 2);
+      let slidesAfter = slideCount - slidesBefore - 1;
 
       if (direction < 0) {
         const temp = slidesBefore;
@@ -69,111 +79,94 @@ export default class ScrollTransition extends React.Component {
       const distanceFromStart = Math.abs(startSlide - index);
       if (index < startSlide) {
         if (distanceFromStart > slidesBefore) {
-          targetPosition =
-            (this.props.slideWidth + this.props.cellSpacing) *
-            (this.props.slideCount + index);
+          targetPosition = (slideWidth + cellSpacing) * (slideCount + index);
         }
       } else if (distanceFromStart > slidesAfter) {
-        targetPosition =
-          (this.props.slideWidth + this.props.cellSpacing) *
-          (this.props.slideCount - index) *
-          -1;
+        targetPosition = (slideWidth + cellSpacing) * (slideCount - index) * -1;
       }
     }
 
     return targetPosition + offset;
-  }
+  };
   /* eslint-enable complexity */
 
-  formatChildren(children) {
-    const { top, left, currentSlide, slidesToShow } = this.props;
-    const positionValue = this.props.vertical ? top : left;
-    return React.Children.map(children, (child, index) => {
-      const visible =
-        index >= currentSlide && index < currentSlide + slidesToShow;
-      return (
-        <li
-          className={`slider-slide${visible ? ' slide-visible' : ''}`}
-          style={this.getSlideStyles(index, positionValue)}
-          key={index}
-        >
-          {child}
-        </li>
-      );
-    });
-  }
-
-  getSlideStyles(index, positionValue) {
-    const targetPosition = this.getSlideTargetPosition(index, positionValue);
+  const getSlideStyles = function(index, positionValue) {
+    const targetPosition = getSlideTargetPosition(index, positionValue);
     const transformScale =
-      this.props.animation === 'zoom' && this.props.currentSlide !== index
-        ? Math.max(
-            Math.min(this.props.zoomScale, MAX_ZOOM_SCALE),
-            MIN_ZOOM_SCALE
-          )
+      animation === 'zoom' && currentSlide !== index
+        ? Math.max(Math.min(zoomScale, MAX_ZOOM_SCALE), MIN_ZOOM_SCALE)
         : 1.0;
     return {
       boxSizing: 'border-box',
-      display: this.props.vertical ? 'block' : 'inline-block',
+      display: vertical ? 'block' : 'inline-block',
       height: 'auto',
-      left: this.props.vertical ? 0 : targetPosition,
+      left: vertical ? 0 : targetPosition,
       listStyleType: 'none',
-      marginBottom: this.props.vertical ? this.props.cellSpacing / 2 : 'auto',
-      marginLeft: this.props.vertical ? 'auto' : this.props.cellSpacing / 2,
-      marginRight: this.props.vertical ? 'auto' : this.props.cellSpacing / 2,
-      marginTop: this.props.vertical ? this.props.cellSpacing / 2 : 'auto',
+      marginBottom: vertical ? cellSpacing / 2 : 'auto',
+      marginLeft: vertical ? 'auto' : cellSpacing / 2,
+      marginRight: vertical ? 'auto' : cellSpacing / 2,
+      marginTop: vertical ? cellSpacing / 2 : 'auto',
       MozBoxSizing: 'border-box',
       position: 'absolute',
-      top: this.props.vertical ? targetPosition : 0,
+      top: vertical ? targetPosition : 0,
       transform: `scale(${transformScale})`,
       transition: 'transform .4s linear',
       verticalAlign: 'top',
-      width: this.props.vertical ? '100%' : this.props.slideWidth
+      width: vertical ? '100%' : slideWidth
     };
-  }
+  };
 
-  getListStyles(styles) {
-    const { deltaX, deltaY } = styles;
-    const listWidth =
-      this.props.slideWidth * React.Children.count(this.props.children);
-    const spacingOffset =
-      this.props.cellSpacing * React.Children.count(this.props.children);
-    const transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
-    return {
-      transform,
-      WebkitTransform: transform,
-      msTransform: `translate(${deltaX}px, ${deltaY}px)`,
-      position: 'relative',
-      display: 'block',
-      margin: this.props.vertical
-        ? `${(this.props.cellSpacing / 2) * -1}px 0px`
-        : `0px ${(this.props.cellSpacing / 2) * -1}px`,
-      padding: 0,
-      height: this.props.vertical
-        ? listWidth + spacingOffset
-        : this.props.slideHeight,
-      width: this.props.vertical ? 'auto' : listWidth + spacingOffset,
-      cursor: this.props.dragging === true ? 'pointer' : 'inherit',
-      boxSizing: 'border-box',
-      MozBoxSizing: 'border-box',
-      touchAction: `pinch-zoom ${this.props.vertical ? 'pan-x' : 'pan-y'}`
-    };
-  }
+  const listStyles = useMemo(
+    () => {
+      const listWidth = slideWidth * React.Children.count(children);
+      const spacingOffset = cellSpacing * React.Children.count(children);
+      const transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
+      return {
+        transform,
+        WebkitTransform: transform,
+        msTransform: `translate(${deltaX}px, ${deltaY}px)`,
+        position: 'relative',
+        display: 'block',
+        margin: vertical
+          ? `${(cellSpacing / 2) * -1}px 0px`
+          : `0px ${(cellSpacing / 2) * -1}px`,
+        padding: 0,
+        height: vertical ? listWidth + spacingOffset : slideHeight,
+        width: vertical ? 'auto' : listWidth + spacingOffset,
+        cursor: dragging === true ? 'pointer' : 'inherit',
+        boxSizing: 'border-box',
+        MozBoxSizing: 'border-box',
+        touchAction: `pinch-zoom ${vertical ? 'pan-x' : 'pan-y'}`
+      };
+    },
+    [children, cellSpacing, deltaX, deltaY, dragging, vertical]
+  );
 
-  render() {
-    const children = this.formatChildren(this.props.children);
-    const deltaX = this.props.deltaX;
-    const deltaY = this.props.deltaY;
+  const formatChildren = useMemo(
+    () => {
+      const positionValue = vertical ? top : left;
+      return React.Children.map(children, (child, index) => {
+        const visible =
+          index >= currentSlide && index < currentSlide + slidesToShow;
+        return (
+          <li
+            className={`slider-slide${visible ? ' slide-visible' : ''}`}
+            style={getSlideStyles(index, positionValue)}
+            key={index}
+          >
+            {child}
+          </li>
+        );
+      });
+    },
+    [children, currentSlide, vertical]
+  );
 
-    return (
-      <ul
-        className="slider-list"
-        style={this.getListStyles({ deltaX, deltaY })}
-      >
-        {children}
-      </ul>
-    );
-  }
+  return (
+    <ul className="slider-list" style={listStyles}>
+      {formatChildren}
+    </ul>
+  );
 }
 
 ScrollTransition.propTypes = {
