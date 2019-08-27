@@ -1,39 +1,84 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 
-export default class FadeTransition extends React.Component {
-  constructor(props) {
-    super(props);
-    this.fadeFromSlide = props.currentSlide;
-  }
+export default function FadeTransition({
+  cellSpacing,
+  children,
+  currentSlide,
+  deltaX,
+  deltaY,
+  dragging,
+  slideCount,
+  slideHeight,
+  slideWidth,
+  slidesToShow,
+  vertical
+}) {
+  const containerStyles = useMemo(
+    () => {
+      const width = slideWidth * slidesToShow;
 
-  formatChildren(children, opacity) {
-    const { currentSlide, slidesToShow } = this.props;
+      return {
+        boxSizing: 'border-box',
+        cursor: dragging === true ? 'pointer' : 'inherit',
+        display: 'block',
+        height: slideHeight,
+        margin: vertical
+          ? `${(cellSpacing / 2) * -1}px 0px`
+          : `0px ${(cellSpacing / 2) * -1}px`,
+        MozBoxSizing: 'border-box',
+        padding: 0,
+        touchAction: 'none',
+        width
+      };
+    },
+    [cellSpacing, dragging, slideHeight, slideWidth, slidesToShow, vertical]
+  );
+
+  const getSlideStyles = function(index, data) {
+    return {
+      boxSizing: 'border-box',
+      display: 'block',
+      height: 'auto',
+      left: data[index] ? data[index].left : 0,
+      listStyleType: 'none',
+      marginBottom: 'auto',
+      marginLeft: cellSpacing / 2,
+      marginRight: cellSpacing / 2,
+      marginTop: 'auto',
+      MozBoxSizing: 'border-box',
+      opacity: data[index] ? data[index].opacity : 0,
+      position: 'absolute',
+      top: 0,
+      verticalAlign: 'top',
+      visibility: data[index] ? 'inherit' : 'hidden',
+      width: slideWidth
+    };
+  };
+
+  const formatChildren = function(opacity) {
     return React.Children.map(children, (child, index) => {
       const visible =
         index >= currentSlide && index < currentSlide + slidesToShow;
       return (
         <li
           className={`slider-slide${visible ? ' slide-visible' : ''}`}
-          style={this.getSlideStyles(index, opacity)}
+          style={getSlideStyles(index, opacity)}
           key={index}
         >
           {child}
         </li>
       );
     });
-  }
+  };
 
-  getSlideOpacityAndLeftMap(fadeFrom, fadeTo, fade) {
+  const getSlideOpacityAndLeftMap = function(fadeFrom, fadeTo, fade) {
     // Figure out which position to fade to
     let fadeToPosition = fadeTo;
     if (fadeFrom > fade && fadeFrom === 0) {
-      fadeToPosition = fadeFrom - this.props.slidesToShow;
-    } else if (
-      fadeFrom < fade &&
-      fadeFrom + this.props.slidesToShow > this.props.slideCount - 1
-    ) {
-      fadeToPosition = fadeFrom + this.props.slidesToShow;
+      fadeToPosition = fadeFrom - slidesToShow;
+    } else if (fadeFrom < fade && fadeFrom + slidesToShow > slideCount - 1) {
+      fadeToPosition = fadeFrom + slidesToShow;
     }
 
     // Calculate opacity for active slides
@@ -48,85 +93,42 @@ export default class FadeTransition extends React.Component {
 
     // Calculate left for slides and merge in opacity
     const map = {};
-    for (let i = 0; i < this.props.slidesToShow; i++) {
+    for (let i = 0; i < slidesToShow; i++) {
       map[fadeFrom + i] = {
         opacity: opacity[fadeFrom],
-        left: this.props.slideWidth * i
+        left: slideWidth * i
       };
 
       map[fadeTo + i] = {
         opacity: opacity[fadeTo],
-        left: this.props.slideWidth * i
+        left: slideWidth * i
       };
     }
 
     return map;
+  };
+
+  const fade = -(deltaX || deltaY) / slideWidth;
+
+  let fadeFromSlide = currentSlide;
+
+  if (parseInt(fade) === fade) {
+    fadeFromSlide = fade;
   }
 
-  getSlideStyles(index, data) {
-    return {
-      boxSizing: 'border-box',
-      display: 'block',
-      height: 'auto',
-      left: data[index] ? data[index].left : 0,
-      listStyleType: 'none',
-      marginBottom: 'auto',
-      marginLeft: this.props.cellSpacing / 2,
-      marginRight: this.props.cellSpacing / 2,
-      marginTop: 'auto',
-      MozBoxSizing: 'border-box',
-      opacity: data[index] ? data[index].opacity : 0,
-      position: 'absolute',
-      top: 0,
-      verticalAlign: 'top',
-      visibility: data[index] ? 'inherit' : 'hidden',
-      width: this.props.slideWidth
-    };
-  }
+  const opacityAndLeftMap = getSlideOpacityAndLeftMap(
+    fadeFromSlide,
+    currentSlide,
+    fade
+  );
 
-  getContainerStyles() {
-    const width = this.props.slideWidth * this.props.slidesToShow;
+  const renderChildren = formatChildren(opacityAndLeftMap);
 
-    return {
-      boxSizing: 'border-box',
-      cursor: this.props.dragging === true ? 'pointer' : 'inherit',
-      display: 'block',
-      height: this.props.slideHeight,
-      margin: this.props.vertical
-        ? `${(this.props.cellSpacing / 2) * -1}px 0px`
-        : `0px ${(this.props.cellSpacing / 2) * -1}px`,
-      MozBoxSizing: 'border-box',
-      padding: 0,
-      touchAction: 'none',
-      width
-    };
-  }
-
-  render() {
-    const fade =
-      -(this.props.deltaX || this.props.deltaY) / this.props.slideWidth;
-
-    if (parseInt(fade) === fade) {
-      this.fadeFromSlide = fade;
-    }
-
-    const opacityAndLeftMap = this.getSlideOpacityAndLeftMap(
-      this.fadeFromSlide,
-      this.props.currentSlide,
-      fade
-    );
-
-    const children = this.formatChildren(
-      this.props.children,
-      opacityAndLeftMap
-    );
-
-    return (
-      <ul className="slider-list" style={this.getContainerStyles()}>
-        {children}
-      </ul>
-    );
-  }
+  return (
+    <ul className="slider-list" style={containerStyles}>
+      {renderChildren}
+    </ul>
+  );
 }
 
 FadeTransition.propTypes = {

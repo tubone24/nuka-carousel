@@ -21,11 +21,11 @@ class App extends React.Component {
       withoutControls: false
     };
 
-    this.handleImageClick = this.handleImageClick.bind(this);
+    this.handleClick = this.handleClick.bind(this);
     this.handleZoomScaleChange = this.handleZoomScaleChange.bind(this);
   }
 
-  handleImageClick() {
+  handleClick() {
     this.setState({ underlineHeader: !this.state.underlineHeader });
   }
 
@@ -37,49 +37,58 @@ class App extends React.Component {
 
   render() {
     return (
-      <div style={{ width: '50%', margin: 'auto' }}>
-        <Carousel
-          slidesToShow={this.state.slidesToShow}
-          slidesToScroll={this.state.slidesToScroll}
-          withoutControls={this.state.withoutControls}
-          transitionMode={this.state.transitionMode}
-          cellAlign={this.state.cellAlign}
-          animation={this.state.animation}
-          zoomScale={Number(this.state.zoomScale || 0)}
-          wrapAround={this.state.wrapAround}
-          slideIndex={this.state.slideIndex}
-          heightMode={this.state.heightMode}
-          renderTopCenterControls={({ currentSlide }) => (
-            <div
-              style={{
-                fontFamily: 'Helvetica',
-                color: '#fff',
-                textDecoration: this.state.underlineHeader
-                  ? 'underline'
-                  : 'none'
-              }}
-            >
-              Nuka Carousel: Slide {currentSlide + 1}
-            </div>
-          )}
-          renderAnnounceSlideMessage={({ currentSlide, slideCount }) => {
-            return `Showing slide ${currentSlide + 1} of ${slideCount}`;
-          }}
-        >
-          {colors.slice(0, this.state.length).map((color, index) => (
-            <img
-              src={`https://via.placeholder.com/400/${color}/ffffff/&text=slide${index +
-                1}`}
-              alt={`Slide ${index + 1}`}
-              key={color}
-              onClick={this.handleImageClick}
-              style={{
-                height:
-                  this.state.heightMode === 'current' ? 100 * (index + 1) : 400
-              }}
-            />
-          ))}
-        </Carousel>
+      <main style={{ backgroundColor: '#eee' }}>
+        <div style={{ margin: 'auto' }}>
+          <Carousel
+            slidesToShow={this.state.slidesToShow}
+            slidesToScroll={this.state.slidesToScroll}
+            withoutControls={this.state.withoutControls}
+            transitionMode={this.state.transitionMode}
+            cellAlign={this.state.cellAlign}
+            animation={this.state.animation}
+            zoomScale={Number(this.state.zoomScale || 0)}
+            wrapAround={this.state.wrapAround}
+            slideIndex={this.state.slideIndex}
+            heightMode={this.state.heightMode}
+            renderTopCenterControls={({ currentSlide }) => (
+              <div
+                style={{
+                  color: '#fff',
+                  textDecoration: this.state.underlineHeader
+                    ? 'underline'
+                    : 'none'
+                }}
+              >
+                Nuka Carousel: Slide {currentSlide + 1}
+              </div>
+            )}
+            renderAnnounceSlideMessage={({ currentSlide, slideCount }) => {
+              return `Showing slide ${currentSlide + 1} of ${slideCount}`;
+            }}
+          >
+            {colors.slice(0, this.state.length).map((color, index) => (
+              <div
+                key={color}
+                style={{
+                  backgroundColor: `#${color}`,
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: '3rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height:
+                    this.state.heightMode === 'current'
+                      ? 100 * (index + 1)
+                      : 400
+                }}
+                key={color}
+              >
+                Slide {index + 1}
+              </div>
+            ))}
+          </Carousel>
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <div>
             <button onClick={() => this.setState({ slideIndex: 0 })}>1</button>
@@ -196,7 +205,7 @@ class App extends React.Component {
             </div>
           </>
         )}
-      </div>
+      </main>
     );
   }
 }
