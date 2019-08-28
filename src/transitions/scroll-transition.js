@@ -138,7 +138,7 @@ export default function ScrollTransition({
         touchAction: `pinch-zoom ${vertical ? 'pan-x' : 'pan-y'}`
       };
     },
-    [children, cellSpacing, deltaX, deltaY, dragging, vertical]
+    [children, cellSpacing, deltaX, deltaY, dragging, vertical, slideWidth]
   );
 
   const formatChildren = useMemo(
@@ -147,10 +147,12 @@ export default function ScrollTransition({
       return React.Children.map(children, (child, index) => {
         const visible =
           index >= currentSlide && index < currentSlide + slidesToShow;
+        const slideStyles = getSlideStyles(index, positionValue);
+
         return (
           <li
             className={`slider-slide${visible ? ' slide-visible' : ''}`}
-            style={getSlideStyles(index, positionValue)}
+            style={slideStyles}
             key={index}
           >
             {child}

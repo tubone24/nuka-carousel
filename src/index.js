@@ -1,10 +1,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import ExecutionEnvironment from 'exenv';
-import Animate from 'react-move/Animate';
 import * as easing from 'd3-ease';
 import { PagingDots, PreviousButton, NextButton } from './default-controls';
-import Transitions from './all-transitions';
+import Slide from './slide';
 import AnnounceSlide, {
   defaultRenderAnnounceSlideMessage
 } from './announce-slide';
@@ -24,7 +23,6 @@ import {
   getTransitionProps
 } from './utilities/style-utilities';
 import {
-  addAccessibility,
   getValidChildren,
   getSlideHeight
 } from './utilities/bootstrapping-utilities';
@@ -601,6 +599,8 @@ export default class Carousel extends React.Component {
 
     offset -= touchOffset || 0;
 
+    console.log('getTargetLeft', (left - offset) * -1);
+
     return (left - offset) * -1;
   }
 
@@ -614,6 +614,8 @@ export default class Carousel extends React.Component {
         this.touchObject.length * this.touchObject.direction
       );
     }
+
+    console.log('getOffsetDeltas', offset);
 
     return {
       tx: this.props.vertical ? 0 : offset,
@@ -953,22 +955,22 @@ export default class Carousel extends React.Component {
       });
     }
   }
+
   render() {
     const { currentSlide, slideCount, frameWidth } = this.state;
     const {
       frameOverflow,
       vertical,
       framePadding,
-      slidesToShow,
-      renderAnnounceSlideMessage,
-      disableAnimation
+      renderAnnounceSlideMessage
     } = this.props;
+
     const duration =
       this.state.dragging ||
       (!this.state.dragging &&
         this.state.resetWrapAroundPosition &&
         this.props.wrapAround) ||
-      disableAnimation ||
+      this.props.disableAnimation ||
       !this.state.hasInteraction
         ? 0
         : this.props.speed;
@@ -981,7 +983,6 @@ export default class Carousel extends React.Component {
     );
     const touchEvents = this.getTouchEvents();
     const mouseEvents = this.getMouseEvents();
-    const TransitionControl = Transitions[this.props.transitionMode];
     const validChildren = getValidChildren(this.props.children);
 
     return (
@@ -1006,68 +1007,40 @@ export default class Carousel extends React.Component {
           {...mouseEvents}
           onClickCapture={this.handleClick}
         >
-          <Animate
-            show
-            start={{ tx: 0, ty: 0 }}
-            update={() => {
-              const { tx, ty } = this.getOffsetDeltas();
+          <Slide
+            currentSlide={this.state.currentSlide}
+            duration={duration}
+            disableEdgeSwiping={this.props.disableEdgeSwiping}
+            easing={this.state.easing}
+            getOffsetDeltas={this.getOffsetDeltas}
+            isEdgeSwiping={this.isEdgeSwiping}
+            slidesToShow={this.props.slidesToShow}
+            transitionMode={this.props.transitionMode}
+            transitionProps={getTransitionProps(this.props, this.state)}
+            wrapAround={this.props.wrapAround}
+            endEvent={() => {
+              const newLeft = vertical ? 0 : this.getTargetLeft();
+              const newTop = vertical ? this.getTargetLeft() : 0;
 
-              if (
-                this.props.disableEdgeSwiping &&
-                !this.props.wrapAround &&
-                this.isEdgeSwiping()
-              ) {
-                return {};
-              } else {
-                return {
-                  tx,
-                  ty,
-                  timing: {
-                    duration,
-                    ease: this.state.easing
+              if (newLeft !== this.state.left || newTop !== this.state.top) {
+                this.setState(
+                  {
+                    left: newLeft,
+                    top: newTop,
+                    isWrappingAround: false,
+                    resetWrapAroundPosition: true
                   },
-                  events: {
-                    end: () => {
-                      const newLeft = this.props.vertical
-                        ? 0
-                        : this.getTargetLeft();
-                      const newTop = this.props.vertical
-                        ? this.getTargetLeft()
-                        : 0;
-
-                      if (
-                        newLeft !== this.state.left ||
-                        newTop !== this.state.top
-                      ) {
-                        this.setState(
-                          {
-                            left: newLeft,
-                            top: newTop,
-                            isWrappingAround: false,
-                            resetWrapAroundPosition: true
-                          },
-                          () => {
-                            this.setState({
-                              resetWrapAroundPosition: false
-                            });
-                          }
-                        );
-                      }
-                    }
+                  () => {
+                    this.setState({
+                      resetWrapAroundPosition: false
+                    });
                   }
-                };
+                );
               }
             }}
-            children={({ tx, ty }) => (
-              <TransitionControl
-                {...getTransitionProps(this.props, this.state)}
-                deltaX={tx}
-                deltaY={ty}
-              >
-                {addAccessibility(validChildren, slidesToShow, currentSlide)}
-              </TransitionControl>
-            )}
-          />
+          >
+            {validChildren}
+          </Slide>
         </div>
 
         {this.renderControls()}
