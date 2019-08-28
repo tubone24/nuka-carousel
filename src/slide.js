@@ -15,7 +15,6 @@ export default function Slide({
   transitionMode,
   transitionProps,
   wrapAround,
-  // Function
   endEvent
 }) {
   const TransitionControl = Transitions[transitionMode];
