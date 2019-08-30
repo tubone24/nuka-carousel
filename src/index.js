@@ -83,7 +83,6 @@ export default function Carousel({
   heightMode,
   initialSlideHeight,
   initialSlideWidth,
-  slideHeight,
   slideIndex,
   slidesToScroll,
   slidesToShow,
@@ -93,30 +92,15 @@ export default function Carousel({
   vertical,
   wrapAround
 }) {
-  // `this.frame`
   const sliderFrameEl = useRef(null);
+  const sliderFrameWidth = useRef(null);
+  const sliderFrameHeight = useRef(null);
 
   const validChildren = getValidChildren(children);
   const slideCount = getValidChildren(children).length;
 
-  // TODO: Reconsider all these measurements
-  const sliderFrameElWidth =
-    sliderFrameEl.current !== null ? sliderFrameEl.current.offsetWidth : 0;
-  const frameHeight = slideHeight + cellSpacing * (slidesToShow - 1);
-  const frameWidth = vertical ? frameHeight : sliderFrameElWidth;
-
-  let updateSlidesToScroll = slidesToScroll;
-  // update slidesToScroll
-  if (slidesToScroll === 'auto') {
-    updateSlidesToScroll = Math.floor(frameWidth / (slideWidth + cellSpacing));
-  } else {
-    updateSlidesToScroll =
-      transitionMode === 'fade'
-        ? Math.max(parseInt(slidesToShow), 1)
-        : slidesToScroll;
-  }
-
   // State
+
   const [dimensions, setDimensions] = useState({
     height: initialSlideHeight,
     width: initialSlideWidth
@@ -125,14 +109,19 @@ export default function Carousel({
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Helper methods for slide dimensions
-  const getHeight = () => {
-    const childNodes = sliderFrameEl.current.childNodes[0].childNodes;
 
-    return getSlideHeight(
-      { heightMode, vertical, initialSlideHeight },
-      { slidesToShow, currentSlide },
-      childNodes
-    );
+  const getHeight = () => {
+    if (sliderFrameEl.current !== null) {
+      const childNodes = sliderFrameEl.current.childNodes[0].childNodes;
+
+      return getSlideHeight(
+        { heightMode, vertical, initialSlideHeight },
+        { slidesToShow, currentSlide },
+        childNodes
+      );
+    } else {
+      return 0;
+    }
   };
 
   const getWidth = () => {
@@ -156,6 +145,30 @@ export default function Carousel({
     return width;
   };
 
+  // Slider Frame Measurement
+
+  const sliderFrameElWidth =
+    sliderFrameEl.current !== null ? sliderFrameEl.current.offsetWidth : 0;
+  sliderFrameHeight.current = getHeight() + cellSpacing * (slidesToShow - 1);
+  sliderFrameWidth.current = vertical
+    ? sliderFrameHeight.current
+    : sliderFrameElWidth;
+
+  let updateSlidesToScroll = slidesToScroll;
+  // update slidesToScroll
+  if (slidesToScroll === 'auto') {
+    updateSlidesToScroll = Math.floor(
+      sliderFrameWidth.current / (slideWidth + cellSpacing)
+    );
+  } else {
+    updateSlidesToScroll =
+      transitionMode === 'fade'
+        ? Math.max(parseInt(slidesToShow), 1)
+        : slidesToScroll;
+  }
+
+  // Action methods!!
+
   const nextSlide = () => {
     if (isTransitioning) {
       return;
@@ -170,6 +183,8 @@ export default function Carousel({
     }
 
     const beyondLastSlide = currentSlide >= slideCount;
+
+    console.log('updateSlidesToScroll', updateSlidesToScroll);
 
     if (beyondLastSlide) {
       if (!wrapAround) {
@@ -234,7 +249,7 @@ export default function Carousel({
       setCurrentSlide(slideCountChanged ? slideIndex : currentSlide);
 
       if (slideCount <= currentSlide) {
-        goToSlide(Math.max(slideCount - 1, 0));
+        setCurrentSlide(Math.max(slideCount - 1, 0));
       }
     },
     [children, slideCount]
@@ -254,7 +269,6 @@ export default function Carousel({
       cellSpacing,
       heightMode,
       slideCount,
-      slideHeight,
       slidesToScroll,
       slidesToShow,
       slideWidth,
@@ -266,18 +280,12 @@ export default function Carousel({
   useLayoutEffect(() => {
     const handleResize = function() {
       // Recalculate the slide height and width
-      setDimensions({
-        height: getHeight(),
-        width: getWidth()
-      });
+      setDimensions({ height: getHeight(), width: getWidth() });
     };
 
     const handleReadyStateChange = function() {
       // Recalculate the slide height and width
-      setDimensions({
-        height: getHeight(),
-        width: getWidth()
-      });
+      setDimensions({ height: getHeight(), width: getWidth() });
     };
 
     if (ExecutionEnvironment.canUseDOM) {
@@ -305,6 +313,10 @@ export default function Carousel({
         {JSON.stringify(currentSlide)} isTransitioning:{' '}
         {JSON.stringify(isTransitioning)}
       </p>
+      <p>
+        frame: {JSON.stringify(sliderFrameWidth.current)} x{' '}
+        {JSON.stringify(sliderFrameHeight.current)}
+      </p>
       <div
         className="slider-frame"
         ref={sliderFrameEl}
@@ -312,7 +324,7 @@ export default function Carousel({
           frameOverflow,
           vertical,
           framePadding,
-          frameWidth
+          sliderFrameWidth.current
         )}
         onClick={handleClick}
       >
