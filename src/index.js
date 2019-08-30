@@ -9,6 +9,7 @@ import PropTypes from 'prop-types';
 import ExecutionEnvironment from 'exenv';
 import * as d3easing from 'd3-ease';
 import { PagingDots, PreviousButton, NextButton } from './default-controls';
+import Transitions from './all-transitions';
 import Slide from './slide';
 import AnnounceSlide, {
   defaultRenderAnnounceSlideMessage
@@ -18,7 +19,8 @@ import {
   removeEvent,
   swipeDirection,
   shouldUpdate,
-  calcSomeInitialState
+  calcSomeInitialState,
+  getPropsByTransitionMode
 } from './utilities/utilities';
 import {
   getImgTagStyles,
@@ -32,509 +34,184 @@ import {
   getSlideHeight
 } from './utilities/bootstrapping-utilities';
 
-const useInterval = function(callback, delay) {
-  const savedCallback = useRef();
+/* eslint-disable-next-line consistent-return */
+const useTimeout = function(callback, delay) {
+  const tick = function() {
+    callback();
+  };
+  if (delay !== null) {
+    setTimeout(tick, delay);
+    // return () => clearTimeout(id);
+  }
 
-  // Remember the latest callback.
-  useLayoutEffect(
-    () => {
-      savedCallback.current = callback;
-    },
-    [callback]
-  );
+  // const savedCallback = useRef();
 
-  // Set up the interval.
-  useLayoutEffect(
-    /* eslint-disable-next-line consistent-return */
-    () => {
-      const tick = function() {
-        savedCallback.current();
-      };
-      if (delay !== null) {
-        const id = setInterval(tick, delay);
-        return () => clearInterval(id);
-      }
-    },
-    [delay]
-  );
+  // // Remember the latest callback
+  // useEffect(
+  //   () => {
+  //     savedCallback.current = callback;
+  //   },
+  //   [callback]
+  // );
+
+  // // Set up the timeout
+  // useEffect(
+  //   /* eslint-disable-next-line consistent-return */
+  //   () => {
+  //     const tick = function() {
+  //       savedCallback.current();
+  //     };
+  //     if (delay !== null) {
+  //       const id = setTimeout(tick, delay);
+  //       return () => clearTimeout(id);
+  //     }
+  //   },
+  //   [delay]
+  // );
 };
 
-// TODO: export { NextButton, PreviousButton, PagingDots };
-
-/* eslint-disable-next-line complexity */
 export default function Carousel({
   afterSlide,
   animation,
-  autoGenerateStyleTag,
-  autoplay,
-  autoplayInterval,
-  autoplayReverse,
   beforeSlide,
   cellAlign,
   cellSpacing,
   children,
-  className,
-  disableAnimation,
-  disableEdgeSwiping,
-  dragging,
-  easing,
-  edgeEasing,
-  enableKeyboardControls,
+  clickDisabled,
   frameOverflow,
   framePadding,
-  height,
   heightMode,
   initialSlideHeight,
   initialSlideWidth,
-  onDragStart,
-  onResize,
-  opacityScale,
-  pauseOnHover,
-  renderAnnounceSlideMessage,
-  renderBottomCenterControls,
-  renderBottomLeftControls,
-  renderBottomRightControls,
-  renderCenterCenterControls,
-  renderCenterLeftControls,
-  renderCenterRightControls,
-  renderTopCenterControls,
-  renderTopLeftControls,
-  renderTopRightControls,
+  slideHeight,
   slideIndex,
-  slideListMargin,
-  slideOffset,
   slidesToScroll,
   slidesToShow,
-  // slideWidth,
+  slideWidth,
   speed,
-  style,
-  swiping,
   transitionMode,
   vertical,
-  width,
-  withoutControls,
-  wrapAround,
-  zoomScale
+  wrapAround
 }) {
-  // use sliderFrameEl for `this.frame`
+  // `this.frame`
   const sliderFrameEl = useRef(null);
 
-  // let clickDisabled = false;
-  // let isTransitioning = false;
-  let touchObject = {};
-  let childNodesMutationObs = null;
-
   const validChildren = getValidChildren(children);
+  const slideCount = getValidChildren(children).length;
 
-  // State
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [clickDisabled, setClickDisabled] = useState(false);
-  const [currentSlide, setCurrentSlide] = useState(slideIndex);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isEasing, setIsEasing] = useState(
-    disableAnimation ? '' : d3easing.easeCircleOut
-  );
-  // hasInteraction: to remove animation from the initial slide on the page load when non-default slideIndex is used
-  const [hasInteraction, setHasInteraction] = useState(false);
-  const [isWrappingAround, setIsWrappingAround] = useState(false);
-  const [left, setLeft] = useState(0);
-  const [top, setTop] = useState(0);
-  const [resetWrapAroundPosition, setResetWrapAroundPosition] = useState(false);
-  const [slideCount, setSlideCount] = useState(validChildren.length);
-  const [wrapToIndex, setWrapToIndex] = useState(null);
-  const [slideWidth, setSlideWidth] = useState(
-    vertical ? initialSlideHeight || 0 : initialSlideWidth || 0
-  );
-  const [slideHeight, setSlideHeight] = useState(
-    vertical
-      ? (initialSlideHeight || 0) * slidesToShow
-      : initialSlideHeight || 0
-  );
-  const [frameHeight, setFrameHeight] = useState(
-    slideHeight + cellSpacing * (slidesToShow - 1)
-  );
-  const [frameWidth, setFrameWidth] = useState(vertical ? frameHeight : '100%');
+  // TODO: Reconsider all these measurements
+  const sliderFrameElWidth =
+    sliderFrameEl.current !== null ? sliderFrameEl.current.offsetWidth : 0;
+  const frameHeight = slideHeight + cellSpacing * (slidesToShow - 1);
+  const frameWidth = vertical ? frameHeight : sliderFrameElWidth;
 
-  const [isPlaying, setIsPlaying] = useState(autoplay);
-  const [isPausedOnHover, setIsPausedOnHover] = useState(pauseOnHover);
-
-  // Massage props
-  if (transitionMode === 'fade') {
-    slidesToShow = Math.max(parseInt(slidesToShow), 1);
-    slidesToScroll = Math.max(parseInt(slidesToShow), 1);
-    cellAlign = 'left';
+  let updateSlidesToScroll = slidesToScroll;
+  // update slidesToScroll
+  if (slidesToScroll === 'auto') {
+    updateSlidesToScroll = Math.floor(frameWidth / (slideWidth + cellSpacing));
+  } else {
+    updateSlidesToScroll =
+      transitionMode === 'fade'
+        ? Math.max(parseInt(slidesToShow), 1)
+        : slidesToScroll;
   }
 
-  const getTargetLeft = function(touchOffset, slide) {
-    let offset;
-    const target = slide || currentSlide;
-    switch (cellAlign) {
-      case 'left': {
-        offset = 0;
-        offset -= cellSpacing * target;
-        break;
-      }
-      case 'center': {
-        offset = (frameWidth - slideWidth) / 2;
-        offset -= cellSpacing * target;
-        break;
-      }
-      case 'right': {
-        offset = frameWidth - slideWidth;
-        offset -= cellSpacing * target;
-        break;
-      }
-    }
+  // State
+  const [dimensions, setDimensions] = useState({
+    height: initialSlideHeight,
+    width: initialSlideWidth
+  });
+  const [currentSlide, setCurrentSlide] = useState(slideIndex);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
-    let newLeft = slideWidth * target;
-
-    const lastSlide = currentSlide > 0 && target + slidesToScroll >= slideCount;
-
-    if (
-      lastSlide &&
-      slideWidth !== 1 &&
-      !wrapAround &&
-      slidesToScroll === 'auto'
-    ) {
-      newLeft = slideWidth * slideCount - frameWidth;
-      offset = 0;
-      offset -= cellSpacing * (slideCount - 1);
-    }
-
-    offset -= touchOffset || 0;
-
-    return (newLeft - offset) * -1;
-  };
-
-  const calcSlideHeightAndWidth = function() {
+  // Helper methods for slide dimensions
+  const getHeight = () => {
     const childNodes = sliderFrameEl.current.childNodes[0].childNodes;
-    const newSlideHeight = getSlideHeight(
+
+    return getSlideHeight(
       { heightMode, vertical, initialSlideHeight },
       { slidesToShow, currentSlide },
       childNodes
     );
+  };
 
-    //slide width
-
-    let newSlideWidth;
-
+  const getWidth = () => {
+    let width;
     if (animation === 'zoom') {
-      newSlideWidth =
+      width =
         sliderFrameEl.current.offsetWidth -
         (sliderFrameEl.current.offsetWidth * 15) / 100;
     } else if (typeof slideWidth !== 'number') {
-      newSlideWidth = parseInt(slideWidth);
+      width = parseInt(slideWidth);
     } else if (vertical) {
-      newSlideWidth = (newSlideHeight / slidesToShow) * slideWidth;
+      width = (getHeight() / slidesToShow) * slideWidth;
     } else {
-      newSlideWidth = (sliderFrameEl.offsetWidth / slidesToShow) * slideWidth;
+      width = (sliderFrameEl.current.offsetWidth / slidesToShow) * slideWidth;
     }
 
     if (!vertical) {
-      newSlideWidth -= cellSpacing * ((100 - 100 / slidesToShow) / 100);
+      width -= cellSpacing * ((100 - 100 / slidesToShow) / 100);
     }
 
-    return { newSlideHeight, newSlideWidth };
+    return width;
   };
 
-  const setDimensions = (stateCb = () => {}) => {
-    const { newSlideHeight, newSlideWidth } = calcSlideHeightAndWidth();
-
-    const newFrameHeight = newSlideHeight + cellSpacing * (slidesToShow - 1);
-    const newFrameWidth = vertical ? newFrameHeight : sliderFrameEl.offsetWidth;
-
-    if (slidesToScroll === 'auto') {
-      slidesToScroll = Math.floor(
-        newFrameWidth / (newSlideWidth + cellSpacing)
-      );
-    }
-
-    setFrameWidth(frameWidth);
-    setFrameHeight(frameHeight);
-    // setSlidesToShow(slidesToShow);
-    setSlideWidth(slideWidth);
-    setLeft(vertical ? 0 : getTargetLeft());
-    setTop(vertical ? getTargetLeft() : 0);
-
-    stateCb();
-
-    const newLeft = vertical ? 0 : getTargetLeft();
-    const newTop = vertical ? getTargetLeft() : 0;
-
-    if (newLeft !== left) {
-      setLeft(newLeft);
-    }
-    if (newTop !== top) {
-      setTop(newTop);
-    }
-  };
-
-  const resetAutoplay = function() {
-    if (autoplay && isPlaying) {
-      // TODO:
-      // stopAutoplay() (which clearInterval)
-      // startAutoplay (setInterval)
-      console.warn('TODO: resetAutoplay() is this needed?');
-    }
-  };
-
-  // Action Methods
-
-  /* eslint-disable-next-line complexity */
-  const goToSlide = function(index, props) {
-    if (props) {
-      console.log('goToSlide has custom props!!', props);
-    }
-
+  const nextSlide = () => {
     if (isTransitioning) {
       return;
     }
 
-    setHasInteraction(true);
-    setIsEasing(d3easing[easing]);
-
     setIsTransitioning(true);
 
-    const prevSlide = currentSlide;
-
-    if (index >= slideCount || index < 0) {
-      if (!wrapAround) {
-        setIsTransitioning(false);
-        return;
-      }
-      if (index >= slideCount) {
-        beforeSlide(currentSlide, 0);
-
-        setLeft(vertical ? 0 : getTargetLeft(slideWidth, currentSlide));
-        setTop(vertical ? getTargetLeft(slideWidth, currentSlide) : 0);
-        setCurrentSlide(0);
-        setIsWrappingAround(true);
-        setWrapToIndex(index);
-
-        // TODO: This setTimeout needs to happen after all of the above?
-        setTimeout(() => {
-          resetAutoplay();
-          setIsTransitioning(false);
-          if (index !== prevSlide) {
-            afterSlide(0);
-          }
-        }, speed);
-
-        return;
-      } else {
-        const endSlide = slideCount - slidesToScroll;
-        beforeSlide(currentSlide, endSlide);
-
-        setLeft(vertical ? 0 : getTargetLeft(0, currentSlide));
-        setTop(vertical ? getTargetLeft(0, currentSlide) : 0);
-        setCurrentSlide(endSlide);
-        setIsWrappingAround(true);
-        setWrapToIndex(index);
-
-        // TODO: This setTimeout needs to happen after all of the above?
-        setTimeout(() => {
-          resetAutoplay();
-          setIsTransitioning(false);
-          if (index !== prevSlide) {
-            afterSlide(slideCount - 1);
-          }
-        }, speed);
-
-        // this.setState(
-        //   prevState => ({
-        //     left: props.vertical
-        //       ? 0
-        //       : this.getTargetLeft(0, prevState.currentSlide),
-        //     top: props.vertical
-        //       ? this.getTargetLeft(0, prevState.currentSlide)
-        //       : 0,
-        //     currentSlide: endSlide,
-        //     isWrappingAround: true,
-        //     wrapToIndex: index
-        //   }),
-        //   () => {
-        //     setTimeout(() => {
-        //       this.resetAutoplay();
-        //       this.isTransitioning = false;
-        //       if (index !== previousSlide) {
-        //         this.props.afterSlide(this.state.slideCount - 1);
-        //       }
-        //     }, props.speed);
-        //   }
-        // );
-        return;
-      }
-    }
-  };
-
-  const nextSlide = function() {
-    // if (slidesToScroll === 'auto') {
-    //   setSlidesToShow(slidesToScroll);
-    // }
-
-    if (
-      currentSlide >= slideCount - slidesToShow &&
-      !wrapAround &&
-      cellAlign === 'left'
-    ) {
+    const atEndOfCarousel = currentSlide >= slideCount - slidesToShow;
+    if (atEndOfCarousel && !wrapAround && cellAlign === 'left') {
+      // Cannot advance to next slide
       return;
     }
 
-    if (wrapAround) {
-      goToSlide(currentSlide + slidesToScroll);
-    } else {
-      if (slideWidth !== 1) {
-        goToSlide(currentSlide + slidesToScroll);
-        return;
+    const beyondLastSlide = currentSlide >= slideCount;
+
+    if (beyondLastSlide) {
+      if (!wrapAround) {
+        setIsTransitioning(false);
+      } else {
+        // Going from last slide to first slide
+        beforeSlide(currentSlide, 0);
+        setCurrentSlide(0);
+
+        setTimeout(() => {
+          console.log('1 set timeout!!');
+          setIsTransitioning(false);
+        }, speed);
       }
-      const offset = currentSlide + slidesToScroll;
+    } else if (slideWidth !== 1) {
+      setCurrentSlide((currentSlide + updateSlidesToScroll) % slideCount);
+
+      setTimeout(() => {
+        console.log('2 set timeout!!');
+        setIsTransitioning(false);
+      }, speed);
+    } else {
+      const offset = currentSlide + updateSlidesToScroll;
       const nextSlideIndex =
         cellAlign !== 'left'
           ? offset
           : Math.min(offset, slideCount - slidesToShow);
-      goToSlide(nextSlideIndex);
+
+      console.warn('offset', offset, 'nextSlideIndex', nextSlideIndex);
+      setCurrentSlide(nextSlideIndex);
+
+      setTimeout(() => {
+        console.log('3 set timeout!!');
+        setIsTransitioning(false);
+      }, speed);
     }
   };
-
-  const previousSlide = function() {
-    if (currentSlide <= 0 && !wrapAround) {
-      return;
-    }
-
-    if (wrapAround) {
-      goToSlide(currentSlide - slidesToScroll);
-    } else {
-      goToSlide(Math.max(0, currentSlide - slidesToScroll));
-    }
-  };
-
-  // Handle Autoplay
-  useInterval(
-    () => {
-      // previously: autoplayIterator()
-      if (wrapAround) {
-        if (autoplayReverse) {
-          previousSlide();
-        } else {
-          nextSlide();
-        }
-      } else if (autoplayReverse) {
-        if (currentSlide !== 0) {
-          previousSlide();
-        } else {
-          // clearInterval
-          setIsPlaying(false);
-        }
-      } else if (currentSlide !== slideCount - slidesToShow) {
-        nextSlide();
-      } else {
-        // clearInterval
-        setIsPlaying(false);
-      }
-    },
-    isPlaying ? autoplayInterval : null
-  );
-
-  // eslint-disable-next-line complexity
-  const handleKeyPress = useCallback(e => {
-    console.warn('TODO: handleKeyPress');
-    if (enableKeyboardControls) {
-      switch (e.keyCode) {
-        case 39:
-        case 68:
-        case 38:
-        case 87:
-          nextSlide();
-          break;
-        case 37:
-        case 65:
-        case 40:
-        case 83:
-          previousSlide();
-          break;
-        case 81:
-          goToSlide(0);
-          break;
-        case 69:
-          goToSlide(slideCount - 1);
-          break;
-        case 32:
-          if (isPausedOnHover && autoplay) {
-            setIsPausedOnHover(false);
-            setIsPlaying(false);
-            console.warn('TODO: confirm pause autoplay?', isPlaying);
-            break;
-          } else {
-            setIsPausedOnHover(true);
-            setIsPlaying(true);
-            console.warn('TODO: confirm unpause autoplay?', isPlaying);
-            break;
-          }
-      }
-    }
-  }, []);
-
-  const handleResize = function() {
-    setDimensions(null, onResize);
-  };
-
-  const handleReadyStateChange = function() {
-    setDimensions();
-  };
-
-  const handleVisibilityChange = function() {
-    if (document.hidden) {
-      // pause autoplay
-      if (autoplay) {
-        setIsPlaying(false);
-      }
-    } else if (autoplay && !isPlaying) {
-      // unpause autoplay
-      setIsPlaying(true);
-    }
-  };
-
-  // Bootstrapping
-  // useLayoutEffect(() => {
-  //   // previously: bindEvents()
-  //   if (ExecutionEnvironment.canUseDOM) {
-  //     addEvent(window, 'resize', handleResize);
-  //     addEvent(document, 'readystatechange', handleReadyStateChange);
-  //     addEvent(document, 'visibilitychange', handleVisibilityChange);
-  //     addEvent(document, 'keydown', handleKeyPress);
-  //     return () => {
-  //       removeEvent(window, 'resize', handleResize);
-  //       removeEvent(document, 'readystatechange', handleReadyStateChange);
-  //       removeEvent(document, 'visibilitychange', handleVisibilityChange);
-  //       removeEvent(document, 'keydown', handleKeyPress);
-  //     };
-  //   } else {
-  //     return () => {};
-  //   }
-  // }, []);
-
-  const duration =
-    isDragging ||
-    (!isDragging && resetWrapAroundPosition && wrapAround) ||
-    disableAnimation ||
-    !hasInteraction
-      ? 0
-      : speed;
-
-  const frameStyles = getFrameStyles(
-    frameOverflow,
-    vertical,
-    framePadding,
-    frameWidth
-  );
-
-  // TODO:
-  // const touchEvents = this.getTouchEvents();
-  // const mouseEvents = this.getMouseEvents();
 
   const handleClick = useCallback(
     event => {
-      if (clickDisabled === true) {
+      nextSlide();
+      if (clickDisabled) {
         if (event.metaKey || event.shiftKey || event.altKey || event.ctrlKey) {
           return;
         }
@@ -546,170 +223,106 @@ export default function Carousel({
         }
       }
     },
-    [clickDisabled]
+    [clickDisabled, currentSlide]
   );
 
-  const getOffsetDeltas = function() {
-    let offset = 0;
+  useEffect(
+    () => {
+      const validSlideCount = getValidChildren.length;
+      const slideCountChanged = validSlideCount !== slideCount;
 
-    if (isWrappingAround) {
-      offset = getTargetLeft(null, wrapToIndex);
-    } else {
-      offset = getTargetLeft(touchObject.length * touchObject.direction);
-    }
+      setCurrentSlide(slideCountChanged ? slideIndex : currentSlide);
 
-    return { tx: vertical ? 0 : offset, ty: vertical ? offset : 0 };
-  };
+      if (slideCount <= currentSlide) {
+        goToSlide(Math.max(slideCount - 1, 0));
+      }
+    },
+    [children, slideCount]
+  );
 
-  const isEdgeSwiping = function() {
-    const { tx, ty } = getOffsetDeltas();
-
-    if (vertical) {
-      const rowHeight = slideHeight / slidesToShow;
-      const slidesLeftToShow = slideCount - slidesToShow;
-      const lastSlideLimit = rowHeight * slidesLeftToShow;
-
-      // returns true if ty offset is outside first or last slide
-      return ty > 0 || -ty > lastSlideLimit;
-    }
-
-    // returns true if tx offset is outside first or last slide
-    return tx > 0 || -tx > slideWidth * (slideCount - 1);
-  };
-
-  const renderControls = function() {
-    const controlsMap = [
-      { funcName: 'renderTopLeftControls', key: 'TopLeft' },
-      { funcName: 'renderTopCenterControls', key: 'TopCenter' },
-      { funcName: 'renderTopRightControls', key: 'TopRight' },
-      { funcName: 'renderCenterLeftControls', key: 'CenterLeft' },
-      { funcName: 'renderCenterCenterControls', key: 'CenterCenter' },
-      { funcName: 'renderCenterRightControls', key: 'CenterRight' },
-      { funcName: 'renderBottomLeftControls', key: 'BottomLeft' },
-      { funcName: 'renderBottomCenterControls', key: 'BottomCenter' },
-      { funcName: 'renderBottomRightControls', key: 'BottomRight' }
-    ];
-
-    if (withoutControls) {
-      return controlsMap.map(() => null);
-    } else {
-      return controlsMap.map(({ funcName, key }) => {
-        // const func = this.props[funcName];
-        const controlChildren =
-          funcName &&
-          typeof funcName === 'function' &&
-          funcName({
-            cellAlign,
-            cellSpacing,
-            currentSlide,
-            frameWidth,
-            goToSlide: index => goToSlide(index),
-            nextSlide: () => nextSlide(),
-            previousSlide: () => previousSlide(),
-            slideCount,
-            slidesToScroll,
-            slidesToShow,
-            slideWidth,
-            wrapAround
-          });
-
-        return (
-          controlChildren && (
-            <div
-              className={`slider-control-${key.toLowerCase()}`}
-              style={getDecoratorStyles(key)}
-              key={key}
-            >
-              {controlChildren}
-            </div>
-          )
-        );
+  // Set Slide Dimensions
+  useLayoutEffect(
+    () => {
+      // Calculate the slide height and width
+      setDimensions({
+        height: getHeight(),
+        width: getWidth()
       });
+    },
+    [
+      cellAlign,
+      cellSpacing,
+      heightMode,
+      slideCount,
+      slideHeight,
+      slidesToScroll,
+      slidesToShow,
+      slideWidth,
+      transitionMode,
+      vertical
+    ]
+  );
+
+  useLayoutEffect(() => {
+    const handleResize = function() {
+      // Recalculate the slide height and width
+      setDimensions({
+        height: getHeight(),
+        width: getWidth()
+      });
+    };
+
+    const handleReadyStateChange = function() {
+      // Recalculate the slide height and width
+      setDimensions({
+        height: getHeight(),
+        width: getWidth()
+      });
+    };
+
+    if (ExecutionEnvironment.canUseDOM) {
+      addEvent(window, 'resize', handleResize);
+      addEvent(document, 'readystatechange', handleReadyStateChange);
+      // addEvent(document, 'visibilitychange', handleVisibilityChange);
+      // addEvent(document, 'keydown', handleKeyPress);
+      return () => {
+        removeEvent(window, 'resize', handleResize);
+        removeEvent(document, 'readystatechange', handleReadyStateChange);
+        // removeEvent(document, 'visibilitychange', handleVisibilityChange);
+        // removeEvent(document, 'keydown', handleKeyPress);
+      };
+    } else {
+      return () => {};
     }
-  };
+  }, []);
+
+  const TransitionControl = Transitions[transitionMode];
 
   return (
-    <div
-      className={['slider', className || ''].join(' ')}
-      style={Object.assign({}, getSliderStyles(width, height), style)}
-    >
-      {!autoplay && (
-        <AnnounceSlide
-          message={renderAnnounceSlideMessage({
-            currentSlide,
-            slideCount
-          })}
-        />
-      )}
+    <div>
+      <p>
+        {JSON.stringify(dimensions)} currentSlide:{' '}
+        {JSON.stringify(currentSlide)} isTransitioning:{' '}
+        {JSON.stringify(isTransitioning)}
+      </p>
       <div
         className="slider-frame"
         ref={sliderFrameEl}
-        style={frameStyles}
-        onClickCapture={handleClick}
+        style={getFrameStyles(
+          frameOverflow,
+          vertical,
+          framePadding,
+          frameWidth
+        )}
+        onClick={handleClick}
       >
-        <Slide
-          currentSlide={currentSlide}
-          duration={duration}
-          disableEdgeSwiping={disableEdgeSwiping}
-          easing={easing}
-          isEdgeSwiping={isEdgeSwiping}
-          getOffsetDeltas={getOffsetDeltas}
-          slidesToShow={slidesToShow}
-          transitionMode={transitionMode}
-          wrapAround={wrapAround}
-          transitionProps={{
-            animation,
-            cellSpacing,
-            currentSlide,
-            dragging,
-            isWrappingAround,
-            left,
-            opacityScale,
-            slideCount,
-            slideHeight,
-            slideListMargin,
-            slideOffset,
-            slidesToShow,
-            slideWidth,
-            top,
-            vertical,
-            wrapAround,
-            zoomScale
-          }}
-          endEvent={() => {
-            const newLeft = vertical ? 0 : getTargetLeft();
-            const newTop = vertical ? getTargetLeft() : 0;
-
-            if (newLeft !== left || newTop !== top) {
-              setLeft(newLeft);
-              setTop(newTop);
-              setIsWrappingAround(false);
-              console.warn(
-                'resetWrapAroundPosition true?',
-                resetWrapAroundPosition
-              );
-              setResetWrapAroundPosition(true);
-              console.warn(
-                'resetWrapAroundPosition false?',
-                resetWrapAroundPosition
-              );
-              // set true then to false immediately after?
-              setResetWrapAroundPosition(false);
-            }
-          }}
+        <TransitionControl
+          slideHeight={dimensions.height}
+          slideWidth={dimensions.width}
         >
           {validChildren}
-        </Slide>
+        </TransitionControl>
       </div>
-
-      {renderControls()}
-
-      {autoGenerateStyleTag && (
-        <style
-          type="text/css"
-          dangerouslySetInnerHTML={{ __html: getImgTagStyles() }}
-        />
-      )}
     </div>
   );
 }

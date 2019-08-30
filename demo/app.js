@@ -4,9 +4,9 @@ import ReactDom from 'react-dom';
 
 export default function App() {
   return (
-    <Carousel>
+    <Carousel wrapAround speed={500} slidesToScroll="auto">
       <img src="https://www.fillmurray.com/600/400" />
-      <img src="https://www.fillmurray.com/600/400" />
+      <img src="https://www.fillmurray.com/g/600/400" />
       <img src="https://www.fillmurray.com/600/400" />
     </Carousel>
   );
