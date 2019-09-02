@@ -448,19 +448,6 @@ export default function Carousel({
             touchObject.current.length * touchObject.current.direction
           )
         );
-
-        // TODO
-        //   setLeft: vertical
-        //     ? 0
-        //     : this.getTargetLeft(
-        //         touchObject.current.length * touchObject.current.direction
-        //       ),
-        //   setTop: vertical
-        //     ? this.getTargetLeft(
-        //         touchObject.current.length * touchObject.current.direction
-        //       )
-        //     : 0
-        // });
       },
       onTouchEnd: e => {
         handleSwipe(e);
@@ -732,7 +719,11 @@ export default function Carousel({
                       });
 
                       setTimeout(() => {
-                        setWrapping({ ...wrapping, reset: false });
+                        setWrapping({
+                          ...wrapping,
+                          isWrapping: false,
+                          reset: false
+                        });
                       }, 0);
                     }
                   }
