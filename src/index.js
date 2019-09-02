@@ -44,7 +44,10 @@ export default function Carousel({
   cellSpacing,
   children,
   clickDisabled,
+  disableAnimation,
+  disableEdgeSwiping,
   dragging,
+  easing,
   edgeEasing,
   enableKeyboardControls,
   frameOverflow,
@@ -53,7 +56,10 @@ export default function Carousel({
   initialSlideHeight,
   initialSlideWidth,
   onDragStart,
+  opacityScale,
   slideIndex,
+  slideListMargin,
+  slideOffset,
   slidesToScroll,
   slidesToShow,
   slideWidth,
@@ -61,7 +67,8 @@ export default function Carousel({
   swiping,
   transitionMode,
   vertical,
-  wrapAround
+  wrapAround,
+  zoomScale
 }) {
   // Setup
   const sliderFrameEl = useRef();
@@ -78,12 +85,19 @@ export default function Carousel({
     width: initialSlideWidth
   });
   const [currentSlide, setCurrentSlide] = useState(slideIndex);
+  const [currentSlideOffset, setCurrentSlideOffset] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [wrapping, setWrapping] = useState({
     isWrapping: false,
-    index: null
+    index: null,
+    reset: false
   });
+  const [hasInteraction, setHasInteraction] = useState(false); // to remove animation from the initial slide on the page load when non-default slideIndex is used
   const [isDragging, setIsDragging] = useState(false);
+  const initialEasing = disableAnimation
+    ? () => {}
+    : () => d3easing.easeCircleOut;
+  const [easeFunction, setEaseFunction] = useState(d3easing.easeCircleOut);
 
   // Helper methods for slide dimensions
 
@@ -134,8 +148,8 @@ export default function Carousel({
         setFrame({ height, width });
       }
     },
-    [dimensions] // Is there a better way?
-  );
+    [dimensions]
+  ); // Is there a better way?
 
   // Make sure `slidesToScroll` is a number
   useEffect(
@@ -211,6 +225,22 @@ export default function Carousel({
     return { tx: vertical ? 0 : offset, ty: vertical ? offset : 0 };
   };
 
+  const isEdgeSwiping = () => {
+    const { tx, ty } = getOffsetDeltas();
+
+    if (vertical) {
+      const rowHeight = getHeight() / slidesToShow;
+      const slidesLeftToShow = slideCount - slidesToShow;
+      const lastSlideLimit = rowHeight * slidesLeftToShow;
+
+      // returns true if ty offset is outside first or last slide
+      return ty > 0 || -ty > lastSlideLimit;
+    }
+
+    // returns true if tx offset is outside first or last slide
+    return tx > 0 || -tx > getWidth() * (slideCount - 1);
+  };
+
   // Action methods!!
 
   const goToSlide = index => {
@@ -220,6 +250,8 @@ export default function Carousel({
 
     beforeSlide(currentSlide, index);
 
+    setHasInteraction(true);
+    setEaseFunction(d3easing[easing]);
     setIsTransitioning(true);
 
     setCurrentSlide(index);
@@ -230,7 +262,7 @@ export default function Carousel({
     // Warning: Can't perform a React state update on an unmounted component.
     setTimeout(() => {
       // TODO: resetAutoplay()
-      setWrapping({ isWrapping: false, index: null });
+      setWrapping({ ...wrapping, isWrapping: false, index: null });
       setIsTransitioning(false);
       afterSlide(index);
     }, speed);
@@ -253,7 +285,11 @@ export default function Carousel({
       if (beforeFirstSlide) {
         // Go to last slide
         previousSlideIndex = slideCount - updateSlidesToScroll.current;
-        setWrapping({ isWrapping: true, index: previousSlideIndex });
+        setWrapping({
+          ...wrapping,
+          isWrapping: true,
+          index: previousSlideIndex
+        });
       }
     }
 
@@ -286,7 +322,7 @@ export default function Carousel({
         setIsTransitioning(false);
       } else {
         // Going from last slide to first slide
-        setWrapping({ isWrapping: true, index: 0 });
+        setWrapping({ ...wrapping, isWrapping: true, index: 0 });
         goToSlide(0);
       }
     } else {
@@ -327,13 +363,13 @@ export default function Carousel({
     if (touchObject.current.length > getWidth() / updateSlidesToShow / 5) {
       if (touchObject.current.direction === 1) {
         if (currentSlide >= slideCount - updateSlidesToShow && !wrapAround) {
-          // TODO: this.setState({ easing: d3easing[edgeEasing] });
+          setEaseFunction(d3easing[edgeEasing]);
         } else {
           nextSlide();
         }
       } else if (touchObject.current.direction === -1) {
         if (currentSlide <= 0 && !wrapAround) {
-          // TODO: this.setState({ easing: d3easing[edgeEasing] });
+          setEaseFunction(d3easing[edgeEasing]);
         } else {
           previousSlide();
         }
@@ -406,6 +442,12 @@ export default function Carousel({
           direction
         };
 
+        setCurrentSlideOffset(
+          getTargetLeft(
+            touchObject.current.length * touchObject.current.direction
+          )
+        );
+
         // TODO
         //   setLeft: vertical
         //     ? 0
@@ -472,7 +514,7 @@ export default function Carousel({
             );
 
         // prevents disabling click just because mouse moves a fraction of a pixel
-        if (length >= 10) this.clickDisabled = true;
+        // if (length >= 10) this.clickDisabled = true;
 
         touchObject.current = {
           startX: touchObject.current.startX,
@@ -483,19 +525,11 @@ export default function Carousel({
           direction
         };
 
-        // TODO:
-        // this.setState({
-        //   left: vertical
-        //     ? 0
-        //     : getTargetLeft(
-        //         touchObject.current.length * touchObject.current.direction
-        //       ),
-        //   top: vertical
-        //     ? getTargetLeft(
-        //         touchObject.current.length * touchObject.current.direction
-        //       )
-        //     : 0
-        // });
+        setCurrentSlideOffset(
+          getTargetLeft(
+            touchObject.current.length * touchObject.current.direction
+          )
+        );
       },
       onMouseUp: e => {
         if (
@@ -669,11 +703,64 @@ export default function Carousel({
           update={() => {
             const { tx, ty } = getOffsetDeltas();
             console.log('update', tx, ty);
+
+            if (disableEdgeSwiping && !wrapAround && isEdgeSwiping()) {
+              return {};
+            } else {
+              const duration =
+                isDragging ||
+                (!isDragging && wrapping.reset && wrapAround) ||
+                disableAnimation ||
+                !hasInteraction
+                  ? 0
+                  : speed;
+
+              return {
+                tx,
+                ty,
+                timing: { duration, ease: d3easing.easeCircleOut },
+                events: {
+                  end: () => {
+                    // TODO: ease: easeFunction
+                    const newOffset = getTargetLeft();
+                    if (newOffset !== currentSlideOffset) {
+                      setCurrentSlideOffset(newOffset);
+                      setWrapping({
+                        ...wrapping,
+                        isWrapping: false,
+                        reset: true
+                      });
+
+                      setTimeout(() => {
+                        setWrapping({ ...wrapping, reset: false });
+                      }, 0);
+                    }
+                  }
+                }
+              };
+            }
           }}
           children={({ tx, ty }) => (
             <TransitionControl
+              animation={animation}
+              cellSpacing={cellSpacing}
+              currentSlide={currentSlide}
+              deltaX={tx}
+              deltaY={ty}
+              dragging={isDragging}
+              isWrappingAround={wrapping.isWrapping}
+              left={vertical ? 0 : currentSlideOffset}
+              opacityScale={opacityScale}
+              slideCount={slideCount}
               slideHeight={dimensions.height}
+              slideListMargin={slideListMargin}
+              slideOffset={slideOffset}
+              slidesToShow={slidesToShow}
               slideWidth={dimensions.width}
+              top={vertical ? currentSlideOffset : 0}
+              vertical={vertical}
+              wrapAround={wrapAround}
+              zoomScale={zoomScale}
             >
               {validChildren}
             </TransitionControl>
@@ -724,7 +811,7 @@ Carousel.propTypes = {
   renderTopRightControls: PropTypes.func,
   slideIndex: PropTypes.number,
   slideListMargin: PropTypes.number,
-  slideOffset: PropTypes.number,
+  currentSlideOffset: PropTypes.number,
   slidesToScroll: PropTypes.oneOfType([
     PropTypes.number,
     PropTypes.oneOf(['auto'])
@@ -767,7 +854,7 @@ Carousel.defaultProps = {
   renderCenterRightControls: props => <NextButton {...props} />,
   slideIndex: 0,
   slideListMargin: 10,
-  slideOffset: 25,
+  currentSlideOffset: 25,
   slidesToScroll: 1,
   slidesToShow: 1,
   slideWidth: 1,

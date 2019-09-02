@@ -134,16 +134,16 @@ export const getTransitionProps = (props, state) => {
     dragging: props.dragging,
     isWrappingAround: state.isWrappingAround,
     left: state.left,
+    opacityScale: props.opacityScale,
     slideCount: state.slideCount,
     slideHeight: state.slideHeight,
+    slideListMargin: props.slideListMargin,
     slideOffset: props.slideOffset,
     slidesToShow: state.slidesToShow,
     slideWidth: state.slideWidth,
     top: state.top,
     vertical: props.vertical,
     wrapAround: props.wrapAround,
-    zoomScale: props.zoomScale,
-    opacityScale: props.opacityScale,
-    slideListMargin: props.slideListMargin
+    zoomScale: props.zoomScale
   };
 };

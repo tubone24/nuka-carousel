@@ -7,8 +7,7 @@ export default function App() {
     <Carousel wrapAround speed={500} slidesToScroll="auto">
       <img src="https://www.fillmurray.com/600/400" />
       <img src="http://placekitten.com/600/400" />
-      <img src="https://www.fillmurray.com/600/400" />
-      <img src="http://placekitten.com/600/400" />
+      <img src="https://www.fillmurray.com/700/400" />
     </Carousel>
   );
 }
