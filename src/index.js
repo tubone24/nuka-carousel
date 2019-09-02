@@ -256,8 +256,6 @@ export default function Carousel({
     setIsTransitioning(true);
 
     setCurrentSlide(index);
-    // TODO: set `left`
-    // TODO: set `top`
 
     // TODO: Assign this timeout an `id` and make sure it clears on unmount to avoid the
     // Warning: Can't perform a React state update on an unmounted component.
@@ -286,6 +284,8 @@ export default function Carousel({
       if (beforeFirstSlide) {
         // Go to last slide
         previousSlideIndex = slideCount - updateSlidesToScroll.current;
+        // TODO: Fix the offset when carousel is wrapping as there's a blink while it is wrapping
+        // setCurrentSlideOffset(getTargetLeft(0, currentSlide));
         setWrapping({
           ...wrapping,
           isWrapping: true,
@@ -324,6 +324,8 @@ export default function Carousel({
       } else {
         // Going from last slide to first slide
         setWrapping({ ...wrapping, isWrapping: true, index: 0 });
+        // TODO: Fix the offset when carousel is wrapping as there's a blink while it is wrapping
+        // setCurrentSlideOffset(getTargetLeft(getWidth(), currentSlide));
         goToSlide(0);
       }
     } else {
@@ -340,14 +342,14 @@ export default function Carousel({
   // Touch & Mouse Events
 
   const handleMouseOver = () => {
-    console.log('TODO: handleMouseOver()');
+    // console.log('TODO: handleMouseOver()');
     // if (this.props.pauseOnHover) {
     //   this.pauseAutoplay();
     // }
   };
 
   const handleMouseOut = () => {
-    console.log('TODO: handleMouseOut()');
+    // console.log('TODO: handleMouseOut()');
     // if (this.autoplayPaused) {
     //   this.unpauseAutoplay();
     // }
@@ -542,7 +544,7 @@ export default function Carousel({
 
   const handleClick = event => {
     // debugging:
-    nextSlide();
+    previousSlide();
 
     if (clickDisabled) {
       if (event.metaKey || event.shiftKey || event.altKey || event.ctrlKey) {
@@ -690,6 +692,7 @@ export default function Carousel({
           start={{ tx: 0, ty: 0 }}
           update={() => {
             const { tx, ty } = getOffsetDeltas();
+            console.log('update!', tx, ty);
 
             if (disableEdgeSwiping && !wrapAround && isEdgeSwiping()) {
               return {};
@@ -705,12 +708,21 @@ export default function Carousel({
               return {
                 tx,
                 ty,
-                timing: { duration, ease: d3easing.easeCircleOut },
+                timing: {
+                  duration,
+                  // TODO: use easeFunction
+                  ease: d3easing.easeCircleOut
+                },
                 events: {
                   end: () => {
-                    // TODO: ease: easeFunction
                     const newOffset = getTargetLeft();
                     if (newOffset !== currentSlideOffset) {
+                      console.log(
+                        'newOffset!!',
+                        newOffset,
+                        'currentSlideOffset',
+                        currentSlideOffset
+                      );
                       setCurrentSlideOffset(newOffset);
                       setWrapping({
                         ...wrapping,
