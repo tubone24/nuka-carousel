@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import PropTypes from 'prop-types';
 import ExecutionEnvironment from 'exenv';
+import Animate from 'react-move/Animate';
 import * as d3easing from 'd3-ease';
 import { PagingDots, PreviousButton, NextButton } from './default-controls';
 import Transitions from './all-transitions';
@@ -35,42 +36,6 @@ import {
   getSlideHeight
 } from './utilities/bootstrapping-utilities';
 
-/* eslint-disable-next-line consistent-return */
-const useTimeout = function(callback, delay) {
-  const tick = function() {
-    callback();
-  };
-  if (delay !== null) {
-    setTimeout(tick, delay);
-    // return () => clearTimeout(id);
-  }
-
-  // const savedCallback = useRef();
-
-  // // Remember the latest callback
-  // useEffect(
-  //   () => {
-  //     savedCallback.current = callback;
-  //   },
-  //   [callback]
-  // );
-
-  // // Set up the timeout
-  // useEffect(
-  //   /* eslint-disable-next-line consistent-return */
-  //   () => {
-  //     const tick = function() {
-  //       savedCallback.current();
-  //     };
-  //     if (delay !== null) {
-  //       const id = setTimeout(tick, delay);
-  //       return () => clearTimeout(id);
-  //     }
-  //   },
-  //   [delay]
-  // );
-};
-
 export default function Carousel({
   afterSlide,
   animation,
@@ -79,42 +44,52 @@ export default function Carousel({
   cellSpacing,
   children,
   clickDisabled,
+  dragging,
+  edgeEasing,
+  enableKeyboardControls,
   frameOverflow,
   framePadding,
   heightMode,
   initialSlideHeight,
   initialSlideWidth,
+  onDragStart,
   slideIndex,
   slidesToScroll,
   slidesToShow,
   slideWidth,
   speed,
+  swiping,
   transitionMode,
   vertical,
   wrapAround
 }) {
-  const sliderFrameEl = useRef(null);
-  const sliderFrameWidth = useRef(null);
-  const sliderFrameHeight = useRef(null);
+  // Setup
+  const sliderFrameEl = useRef();
   const updateSlidesToScroll = useRef(slidesToScroll);
+  const touchObject = useRef({});
 
   const validChildren = getValidChildren(children);
   const slideCount = getValidChildren(children).length;
 
   // State
-
+  const [frame, setFrame] = useState({ height: 0, width: 0 });
   const [dimensions, setDimensions] = useState({
     height: initialSlideHeight,
     width: initialSlideWidth
   });
   const [currentSlide, setCurrentSlide] = useState(slideIndex);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [wrapping, setWrapping] = useState({
+    isWrapping: false,
+    index: null
+  });
+  const [isDragging, setIsDragging] = useState(false);
 
   // Helper methods for slide dimensions
 
-  const getHeight = () => {
-    if (sliderFrameEl.current !== null) {
-      const childNodes = sliderFrameEl.current.childNodes[0].childNodes;
+  const getHeight = (node = sliderFrameEl.current) => {
+    if (node !== null) {
+      const childNodes = node.childNodes[0].childNodes;
 
       return getSlideHeight(
         { heightMode, vertical, initialSlideHeight },
@@ -126,18 +101,16 @@ export default function Carousel({
     }
   };
 
-  const getWidth = () => {
+  const getWidth = (node = sliderFrameEl.current) => {
     let width;
     if (animation === 'zoom') {
-      width =
-        sliderFrameEl.current.offsetWidth -
-        (sliderFrameEl.current.offsetWidth * 15) / 100;
+      width = node.offsetWidth - (node.offsetWidth * 15) / 100;
     } else if (typeof slideWidth !== 'number') {
       width = parseInt(slideWidth);
     } else if (vertical) {
       width = (getHeight() / slidesToShow) * slideWidth;
     } else {
-      width = (sliderFrameEl.current.offsetWidth / slidesToShow) * slideWidth;
+      width = (node.offsetWidth / slidesToShow) * slideWidth;
     }
 
     if (!vertical) {
@@ -149,27 +122,94 @@ export default function Carousel({
 
   // Slider Frame Measurement
 
-  const sliderFrameElWidth =
-    sliderFrameEl.current !== null ? sliderFrameEl.current.offsetWidth : 0;
-  sliderFrameHeight.current = getHeight() + cellSpacing * (slidesToShow - 1);
-  sliderFrameWidth.current = vertical
-    ? sliderFrameHeight.current
-    : sliderFrameElWidth;
+  const sliderFrame = useCallback(
+    node => {
+      if (node !== null) {
+        sliderFrameEl.current = node;
+        // The initial `height` is incorrect because the children have not loaded yet ugh
+        // which is why there is a dependency on `dimensions`
+        const height = getHeight(node) + cellSpacing * (slidesToShow - 1);
+        const initialWidth = node.offsetWidth;
+        const width = vertical ? height : initialWidth;
+        setFrame({ height, width });
+      }
+    },
+    [dimensions] // Is there a better way?
+  );
 
-  // Calculate slidesToScroll
+  // Make sure `slidesToScroll` is a number
   useEffect(
     () => {
       if (slidesToScroll === 'auto') {
         updateSlidesToScroll.current = Math.floor(
-          sliderFrameWidth.current / (getWidth() + cellSpacing)
+          frame.width / (getWidth() + cellSpacing)
         );
       }
       if (transitionMode === 'fade') {
         updateSlidesToScroll.current = Math.max(parseInt(slidesToShow), 3);
       }
     },
-    [slidesToScroll, sliderFrameElWidth]
+    [slidesToScroll, frame]
   );
+
+  // Animation Method
+
+  const getTargetLeft = (touchOffset, index) => {
+    const targetIndex = index || currentSlide;
+
+    let offset;
+    switch (cellAlign) {
+      case 'left': {
+        offset = 0;
+        offset -= cellSpacing * targetIndex;
+        break;
+      }
+      case 'center': {
+        offset = (frame.width - getWidth()) / 2;
+        offset -= cellSpacing * targetIndex;
+        break;
+      }
+      case 'right': {
+        offset = frame.width - getWidth();
+        offset -= cellSpacing * targetIndex;
+        break;
+      }
+    }
+
+    const isLastSlide =
+      currentSlide > 0 && targetIndex + updateSlidesToScroll >= slideCount;
+
+    let left = getWidth() * targetIndex;
+    if (
+      isLastSlide &&
+      slideWidth !== 1 &&
+      !wrapAround &&
+      slidesToScroll === 'auto'
+    ) {
+      left = getWidth() * slideCount - frame.width;
+      offset = 0;
+      offset -= cellSpacing * (slideCount - 1);
+    }
+
+    offset -= touchOffset || 0;
+
+    return (left - offset) * -1;
+  };
+
+  // Calculate how much each slide should move
+  const getOffsetDeltas = () => {
+    let offset = 0;
+
+    if (wrapping) {
+      offset = getTargetLeft(null, wrapping.index);
+    } else {
+      offset = getTargetLeft(
+        touchObject.current.length * touchObject.current.direction
+      );
+    }
+
+    return { tx: vertical ? 0 : offset, ty: vertical ? offset : 0 };
+  };
 
   // Action methods!!
 
@@ -186,8 +226,11 @@ export default function Carousel({
     // TODO: set `left`
     // TODO: set `top`
 
+    // TODO: Assign this timeout an `id` and make sure it clears on unmount to avoid the
+    // Warning: Can't perform a React state update on an unmounted component.
     setTimeout(() => {
       // TODO: resetAutoplay()
+      setWrapping({ isWrapping: false, index: null });
       setIsTransitioning(false);
       afterSlide(index);
     }, speed);
@@ -210,6 +253,7 @@ export default function Carousel({
       if (beforeFirstSlide) {
         // Go to last slide
         previousSlideIndex = slideCount - updateSlidesToScroll.current;
+        setWrapping({ isWrapping: true, index: previousSlideIndex });
       }
     }
 
@@ -242,8 +286,7 @@ export default function Carousel({
         setIsTransitioning(false);
       } else {
         // Going from last slide to first slide
-        // TODO: set `isWrappingAround`
-        // TODO: set `wrapToIndex`
+        setWrapping({ isWrapping: true, index: 0 });
         goToSlide(0);
       }
     } else {
@@ -257,8 +300,228 @@ export default function Carousel({
     }
   };
 
+  // Touch & Mouse Events
+
+  const handleMouseOver = () => {
+    console.log('handleMouseOver()');
+    // if (this.props.pauseOnHover) {
+    //   this.pauseAutoplay();
+    // }
+  };
+
+  const handleMouseOut = () => {
+    console.log('handleMouseOut()');
+    // if (this.autoplayPaused) {
+    //   this.unpauseAutoplay();
+    // }
+  };
+
+  const handleSwipe = () => {
+    //  updateSlidesToScroll
+    let updateSlidesToShow = slidesToShow;
+
+    if (slidesToScroll === 'auto') {
+      updateSlidesToShow = updateSlidesToScroll.current;
+    }
+
+    if (touchObject.current.length > getWidth() / updateSlidesToShow / 5) {
+      if (touchObject.current.direction === 1) {
+        if (currentSlide >= slideCount - updateSlidesToShow && !wrapAround) {
+          // TODO: this.setState({ easing: d3easing[edgeEasing] });
+        } else {
+          nextSlide();
+        }
+      } else if (touchObject.current.direction === -1) {
+        if (currentSlide <= 0 && !wrapAround) {
+          // TODO: this.setState({ easing: d3easing[edgeEasing] });
+        } else {
+          previousSlide();
+        }
+      }
+    } else {
+      // TODO: Why is the below necessary? Isn't it already on that slide?
+      // goToSlide(currentSlide);
+    }
+
+    // wait for `handleClick` event before resetting clickDisabled
+    setTimeout(() => {
+      //TODO: this.clickDisabled = false;
+      console.log('TODO: set clickDisabled to false');
+    }, 0);
+    touchObject.current = {};
+
+    setIsDragging(false);
+  };
+
+  const getTouchEvents = function() {
+    if (swiping === false) {
+      return { onTouchStart: handleMouseOver, onTouchEnd: handleMouseOut };
+    }
+
+    return {
+      onTouchStart: e => {
+        touchObject.current = {
+          startX: e.touches[0].pageX,
+          startY: e.touches[0].pageY
+        };
+        handleMouseOver();
+
+        if (onDragStart) {
+          onDragStart();
+        }
+
+        setIsDragging(true);
+      },
+      onTouchMove: e => {
+        const direction = swipeDirection(
+          touchObject.current.startX,
+          e.touches[0].pageX,
+          touchObject.current.startY,
+          e.touches[0].pageY,
+          vertical
+        );
+
+        if (direction !== 0) {
+          e.preventDefault();
+        }
+
+        const length = vertical
+          ? Math.round(
+              Math.sqrt(
+                Math.pow(e.touches[0].pageY - touchObject.current.startY, 2)
+              )
+            )
+          : Math.round(
+              Math.sqrt(
+                Math.pow(e.touches[0].pageX - touchObject.current.startX, 2)
+              )
+            );
+
+        touchObject.current = {
+          startX: touchObject.current.startX,
+          startY: touchObject.current.startY,
+          endX: e.touches[0].pageX,
+          endY: e.touches[0].pageY,
+          length,
+          direction
+        };
+
+        // TODO
+        //   setLeft: vertical
+        //     ? 0
+        //     : this.getTargetLeft(
+        //         touchObject.current.length * touchObject.current.direction
+        //       ),
+        //   setTop: vertical
+        //     ? this.getTargetLeft(
+        //         touchObject.current.length * touchObject.current.direction
+        //       )
+        //     : 0
+        // });
+      },
+      onTouchEnd: e => {
+        handleSwipe(e);
+        handleMouseOut();
+      },
+      onTouchCancel: e => {
+        handleSwipe(e);
+      }
+    };
+  };
+
+  const getMouseEvents = function() {
+    if (dragging === false) {
+      return { onMouseOver: handleMouseOver, onMouseOut: handleMouseOut };
+    }
+
+    return {
+      onMouseOver: handleMouseOver,
+      onMouseOut: handleMouseOut,
+      onMouseDown: e => {
+        touchObject.current = { startX: e.clientX, startY: e.clientY };
+
+        if (onDragStart) {
+          onDragStart();
+        }
+
+        setIsDragging(true);
+      },
+      onMouseMove: e => {
+        if (!isDragging) {
+          return;
+        }
+
+        const direction = swipeDirection(
+          touchObject.current.startX,
+          e.clientX,
+          touchObject.current.startY,
+          e.clientY,
+          vertical
+        );
+
+        if (direction !== 0) {
+          e.preventDefault();
+        }
+
+        const length = vertical
+          ? Math.round(
+              Math.sqrt(Math.pow(e.clientY - touchObject.current.startY, 2))
+            )
+          : Math.round(
+              Math.sqrt(Math.pow(e.clientX - touchObject.current.startX, 2))
+            );
+
+        // prevents disabling click just because mouse moves a fraction of a pixel
+        if (length >= 10) this.clickDisabled = true;
+
+        touchObject.current = {
+          startX: touchObject.current.startX,
+          startY: touchObject.current.startY,
+          endX: e.clientX,
+          endY: e.clientY,
+          length,
+          direction
+        };
+
+        // TODO:
+        // this.setState({
+        //   left: vertical
+        //     ? 0
+        //     : getTargetLeft(
+        //         touchObject.current.length * touchObject.current.direction
+        //       ),
+        //   top: vertical
+        //     ? getTargetLeft(
+        //         touchObject.current.length * touchObject.current.direction
+        //       )
+        //     : 0
+        // });
+      },
+      onMouseUp: e => {
+        if (
+          touchObject.current.length === 0 ||
+          touchObject.current.length === undefined
+        ) {
+          setIsDragging(false);
+          return;
+        }
+
+        handleSwipe(e);
+      },
+      onMouseLeave: e => {
+        if (!isDragging) {
+          return;
+        }
+
+        handleSwipe(e);
+      }
+    };
+  };
+
   const handleClick = event => {
-    previousSlide();
+    // debugging:
+    nextSlide();
+
     if (clickDisabled) {
       if (event.metaKey || event.shiftKey || event.altKey || event.ctrlKey) {
         return;
@@ -319,16 +582,53 @@ export default function Carousel({
       setDimensions({ height: getHeight(), width: getWidth() });
     };
 
+    // eslint-disable-next-line complexity
+    const handleKeyPress = function(event) {
+      if (enableKeyboardControls) {
+        switch (event.keyCode) {
+          case 39:
+          case 68:
+          case 38:
+          case 87:
+            nextSlide();
+            break;
+          case 37:
+          case 65:
+          case 40:
+          case 83:
+            previousSlide();
+            break;
+          case 81:
+            goToSlide(0);
+            break;
+          case 69:
+            goToSlide(slideCount - 1);
+            break;
+          // TODO:
+          // case 32:
+          //   if (this.state.pauseOnHover && this.props.autoplay) {
+          //     this.setState({ pauseOnHover: false });
+          //     this.pauseAutoplay();
+          //     break;
+          //   } else {
+          //     this.setState({ pauseOnHover: true });
+          //     this.unpauseAutoplay();
+          //     break;
+          //   }
+        }
+      }
+    };
+
     if (ExecutionEnvironment.canUseDOM) {
       addEvent(window, 'resize', handleResize);
       addEvent(document, 'readystatechange', handleReadyStateChange);
       // addEvent(document, 'visibilitychange', handleVisibilityChange);
-      // addEvent(document, 'keydown', handleKeyPress);
+      addEvent(document, 'keydown', handleKeyPress);
       return () => {
         removeEvent(window, 'resize', handleResize);
         removeEvent(document, 'readystatechange', handleReadyStateChange);
         // removeEvent(document, 'visibilitychange', handleVisibilityChange);
-        // removeEvent(document, 'keydown', handleKeyPress);
+        removeEvent(document, 'keydown', handleKeyPress);
       };
     } else {
       return () => {};
@@ -336,6 +636,8 @@ export default function Carousel({
   }, []);
 
   const TransitionControl = Transitions[transitionMode];
+  const touchEvents = getTouchEvents();
+  const mouseEvents = getMouseEvents();
 
   return (
     <div>
@@ -344,27 +646,39 @@ export default function Carousel({
         {JSON.stringify(currentSlide)} isTransitioning:{' '}
         {JSON.stringify(isTransitioning)}
       </p>
+      <p> {JSON.stringify(wrapping)}</p>
       <p>
-        frame: {JSON.stringify(sliderFrameWidth.current)} x{' '}
-        {JSON.stringify(sliderFrameHeight.current)}
+        frame: {JSON.stringify(frame.width)} x {JSON.stringify(frame.height)}
       </p>
       <div
         className="slider-frame"
-        ref={sliderFrameEl}
+        ref={sliderFrame}
         style={getFrameStyles(
           frameOverflow,
           vertical,
           framePadding,
-          sliderFrameWidth.current
+          frame.width
         )}
+        {...touchEvents}
+        {...mouseEvents}
         onClick={handleClick}
       >
-        <TransitionControl
-          slideHeight={dimensions.height}
-          slideWidth={dimensions.width}
-        >
-          {validChildren}
-        </TransitionControl>
+        <Animate
+          show
+          start={{ tx: 0, ty: 0 }}
+          update={() => {
+            const { tx, ty } = getOffsetDeltas();
+            console.log('update', tx, ty);
+          }}
+          children={({ tx, ty }) => (
+            <TransitionControl
+              slideHeight={dimensions.height}
+              slideWidth={dimensions.width}
+            >
+              {validChildren}
+            </TransitionControl>
+          )}
+        />
       </div>
     </div>
   );
