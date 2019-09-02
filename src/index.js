@@ -3,7 +3,8 @@ import React, {
   useEffect,
   useRef,
   useCallback,
-  useLayoutEffect
+  useLayoutEffect,
+  useMemo
 } from 'react';
 import PropTypes from 'prop-types';
 import ExecutionEnvironment from 'exenv';
@@ -95,6 +96,7 @@ export default function Carousel({
   const sliderFrameEl = useRef(null);
   const sliderFrameWidth = useRef(null);
   const sliderFrameHeight = useRef(null);
+  const updateSlidesToScroll = useRef(slidesToScroll);
 
   const validChildren = getValidChildren(children);
   const slideCount = getValidChildren(children).length;
@@ -154,18 +156,20 @@ export default function Carousel({
     ? sliderFrameHeight.current
     : sliderFrameElWidth;
 
-  let updateSlidesToScroll = slidesToScroll;
-  // update slidesToScroll
-  if (slidesToScroll === 'auto') {
-    updateSlidesToScroll = Math.floor(
-      sliderFrameWidth.current / (slideWidth + cellSpacing)
-    );
-  } else {
-    updateSlidesToScroll =
-      transitionMode === 'fade'
-        ? Math.max(parseInt(slidesToShow), 1)
-        : slidesToScroll;
-  }
+  // Calculate slidesToScroll
+  useEffect(
+    () => {
+      if (slidesToScroll === 'auto') {
+        updateSlidesToScroll.current = Math.floor(
+          sliderFrameWidth.current / (getWidth() + cellSpacing)
+        );
+      }
+      if (transitionMode === 'fade') {
+        updateSlidesToScroll.current = Math.max(parseInt(slidesToShow), 3);
+      }
+    },
+    [slidesToScroll, sliderFrameElWidth]
+  );
 
   // Action methods!!
 
@@ -182,43 +186,57 @@ export default function Carousel({
       return;
     }
 
-    const beyondLastSlide = currentSlide >= slideCount;
-
-    console.log('updateSlidesToScroll', updateSlidesToScroll);
+    const offset = currentSlide + updateSlidesToScroll.current;
+    const beyondLastSlide = offset >= slideCount;
+    let nextSlideIndex;
 
     if (beyondLastSlide) {
+      // Reached end of Carousel
       if (!wrapAround) {
+        if (slideWidth !== 1) {
+          // TODO: Figure out why this was here. It should fix auto scroll?
+          nextSlideIndex =
+            (currentSlide + updateSlidesToScroll.current) % slideCount;
+          setCurrentSlide(nextSlideIndex);
+
+          setTimeout(() => {
+            // TODO: resetAutoplay()
+            setIsTransitioning(false);
+            afterSlide(nextSlideIndex);
+          }, speed);
+        }
+
+        // Do not go to first slide
         setIsTransitioning(false);
       } else {
         // Going from last slide to first slide
         beforeSlide(currentSlide, 0);
+
+        // TODO: goToSlide(0);
+
         setCurrentSlide(0);
 
         setTimeout(() => {
-          console.log('1 set timeout!!');
+          // TODO: resetAutoplay()
           setIsTransitioning(false);
+          afterSlide(0);
         }, speed);
       }
-    } else if (slideWidth !== 1) {
-      setCurrentSlide((currentSlide + updateSlidesToScroll) % slideCount);
-
-      setTimeout(() => {
-        console.log('2 set timeout!!');
-        setIsTransitioning(false);
-      }, speed);
     } else {
-      const offset = currentSlide + updateSlidesToScroll;
-      const nextSlideIndex =
+      // Advance to next slide
+      nextSlideIndex =
         cellAlign !== 'left'
           ? offset
           : Math.min(offset, slideCount - slidesToShow);
 
-      console.warn('offset', offset, 'nextSlideIndex', nextSlideIndex);
+      // TODO: goToSlide(nextSlideIndex);
+
       setCurrentSlide(nextSlideIndex);
 
       setTimeout(() => {
-        console.log('3 set timeout!!');
+        // TODO: resetAutoplay()
         setIsTransitioning(false);
+        afterSlide(nextSlideIndex);
       }, speed);
     }
   };
@@ -238,7 +256,7 @@ export default function Carousel({
         }
       }
     },
-    [clickDisabled, currentSlide]
+    [clickDisabled, currentSlide, isTransitioning]
   );
 
   useEffect(
