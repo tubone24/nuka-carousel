@@ -28,10 +28,10 @@ import {
   getImgTagStyles,
   getDecoratorStyles,
   getSliderStyles,
-  getFrameStyles,
-  getTransitionProps
+  getFrameStyles
 } from './utilities/style-utilities';
 import {
+  addAccessibility,
   getValidChildren,
   getSlideHeight
 } from './utilities/bootstrapping-utilities';
@@ -39,6 +39,7 @@ import {
 export default function Carousel({
   afterSlide,
   animation,
+  autoGenerateStyleTag,
   beforeSlide,
   cellAlign,
   cellSpacing,
@@ -262,7 +263,7 @@ export default function Carousel({
     // Warning: Can't perform a React state update on an unmounted component.
     setTimeout(() => {
       // TODO: resetAutoplay()
-      setWrapping({ ...wrapping, isWrapping: false, index: null });
+      setWrapping({ isWrapping: false, index: null });
       setIsTransitioning(false);
       afterSlide(index);
     }, speed);
@@ -339,14 +340,14 @@ export default function Carousel({
   // Touch & Mouse Events
 
   const handleMouseOver = () => {
-    console.log('handleMouseOver()');
+    console.log('TODO: handleMouseOver()');
     // if (this.props.pauseOnHover) {
     //   this.pauseAutoplay();
     // }
   };
 
   const handleMouseOut = () => {
-    console.log('handleMouseOut()');
+    console.log('TODO: handleMouseOut()');
     // if (this.autoplayPaused) {
     //   this.unpauseAutoplay();
     // }
@@ -702,7 +703,6 @@ export default function Carousel({
           start={{ tx: 0, ty: 0 }}
           update={() => {
             const { tx, ty } = getOffsetDeltas();
-            console.log('update', tx, ty);
 
             if (disableEdgeSwiping && !wrapAround && isEdgeSwiping()) {
               return {};
@@ -762,11 +762,18 @@ export default function Carousel({
               wrapAround={wrapAround}
               zoomScale={zoomScale}
             >
-              {validChildren}
+              {addAccessibility(validChildren, slidesToShow, currentSlide)}
             </TransitionControl>
           )}
         />
       </div>
+
+      {autoGenerateStyleTag && (
+        <style
+          type="text/css"
+          dangerouslySetInnerHTML={{ __html: getImgTagStyles() }}
+        />
+      )}
     </div>
   );
 }
