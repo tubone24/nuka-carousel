@@ -173,13 +173,50 @@ export default function Carousel({
 
   // Action methods!!
 
-  const nextSlide = () => {
-    if (isTransitioning) {
+  const goToSlide = index => {
+    if (isTransitioning || !Number.isInteger(index)) {
       return;
     }
 
+    beforeSlide(currentSlide, index);
+
     setIsTransitioning(true);
 
+    setCurrentSlide(index);
+    // TODO: set `left`
+    // TODO: set `top`
+
+    setTimeout(() => {
+      // TODO: resetAutoplay()
+      setIsTransitioning(false);
+      afterSlide(index);
+    }, speed);
+  };
+
+  const previousSlide = () => {
+    if (currentSlide <= 0 && !wrapAround) {
+      // Cannot advance to previous slide
+      return;
+    }
+
+    let previousSlideIndex = Math.max(
+      0,
+      currentSlide - updateSlidesToScroll.current
+    );
+    if (wrapAround) {
+      previousSlideIndex = currentSlide - updateSlidesToScroll.current;
+
+      const beforeFirstSlide = previousSlideIndex < 0;
+      if (beforeFirstSlide) {
+        // Go to last slide
+        previousSlideIndex = slideCount - updateSlidesToScroll.current;
+      }
+    }
+
+    goToSlide(previousSlideIndex);
+  };
+
+  const nextSlide = () => {
     const atEndOfCarousel = currentSlide >= slideCount - slidesToShow;
     if (atEndOfCarousel && !wrapAround && cellAlign === 'left') {
       // Cannot advance to next slide
@@ -193,34 +230,21 @@ export default function Carousel({
     if (beyondLastSlide) {
       // Reached end of Carousel
       if (!wrapAround) {
-        if (slideWidth !== 1) {
-          // TODO: Figure out why this was here. It should fix auto scroll?
-          nextSlideIndex =
-            (currentSlide + updateSlidesToScroll.current) % slideCount;
-          setCurrentSlide(nextSlideIndex);
+        // TODO: Figure out why the below was here. It should fix auto scroll?
+        // if (slideWidth !== 1) {
+        //   nextSlideIndex =
+        //     (currentSlide + updateSlidesToScroll.current) % slideCount;
 
-          setTimeout(() => {
-            // TODO: resetAutoplay()
-            setIsTransitioning(false);
-            afterSlide(nextSlideIndex);
-          }, speed);
-        }
+        //   goToSlide(nextSlideIndex);
+        // }
 
         // Do not go to first slide
         setIsTransitioning(false);
       } else {
         // Going from last slide to first slide
-        beforeSlide(currentSlide, 0);
-
-        // TODO: goToSlide(0);
-
-        setCurrentSlide(0);
-
-        setTimeout(() => {
-          // TODO: resetAutoplay()
-          setIsTransitioning(false);
-          afterSlide(0);
-        }, speed);
+        // TODO: set `isWrappingAround`
+        // TODO: set `wrapToIndex`
+        goToSlide(0);
       }
     } else {
       // Advance to next slide
@@ -229,35 +253,24 @@ export default function Carousel({
           ? offset
           : Math.min(offset, slideCount - slidesToShow);
 
-      // TODO: goToSlide(nextSlideIndex);
-
-      setCurrentSlide(nextSlideIndex);
-
-      setTimeout(() => {
-        // TODO: resetAutoplay()
-        setIsTransitioning(false);
-        afterSlide(nextSlideIndex);
-      }, speed);
+      goToSlide(nextSlideIndex);
     }
   };
 
-  const handleClick = useCallback(
-    event => {
-      nextSlide();
-      if (clickDisabled) {
-        if (event.metaKey || event.shiftKey || event.altKey || event.ctrlKey) {
-          return;
-        }
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (event.nativeEvent) {
-          event.nativeEvent.stopPropagation();
-        }
+  const handleClick = event => {
+    previousSlide();
+    if (clickDisabled) {
+      if (event.metaKey || event.shiftKey || event.altKey || event.ctrlKey) {
+        return;
       }
-    },
-    [clickDisabled, currentSlide, isTransitioning]
-  );
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.nativeEvent) {
+        event.nativeEvent.stopPropagation();
+      }
+    }
+  };
 
   useEffect(
     () => {
