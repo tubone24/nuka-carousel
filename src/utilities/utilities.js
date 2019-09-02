@@ -55,10 +55,8 @@ export const addAccessibility = (children, slidesToShow, currentSlide) => {
   }
 };
 
-export const getPropsByTransitionMode = (
-  { slidesToShow, transitionMode },
-  keys
-) => {
+export const getPropsByTransitionMode = (props, keys) => {
+  const { slidesToShow, transitionMode } = props;
   const updatedDefaults = {};
   if (transitionMode === 'fade') {
     keys.forEach(key => {
