@@ -3,8 +3,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
-  useLayoutEffect,
-  useMemo
+  useLayoutEffect
 } from 'react';
 import PropTypes from 'prop-types';
 import ExecutionEnvironment from 'exenv';
@@ -12,7 +11,6 @@ import Animate from 'react-move/Animate';
 import * as d3easing from 'd3-ease';
 import { PagingDots, PreviousButton, NextButton } from './default-controls';
 import Transitions from './all-transitions';
-import Slide from './slide';
 import AnnounceSlide, {
   defaultRenderAnnounceSlideMessage
 } from './announce-slide';
@@ -20,7 +18,6 @@ import {
   addEvent,
   removeEvent,
   swipeDirection,
-  shouldUpdate,
   calcSomeInitialState,
   getPropsByTransitionMode
 } from './utilities/utilities';
@@ -40,10 +37,12 @@ export default function Carousel({
   afterSlide,
   animation,
   autoGenerateStyleTag,
+  autoplay,
   beforeSlide,
   cellAlign,
   cellSpacing,
   children,
+  className,
   clickDisabled,
   disableAnimation,
   disableEdgeSwiping,
@@ -53,11 +52,13 @@ export default function Carousel({
   enableKeyboardControls,
   frameOverflow,
   framePadding,
+  height,
   heightMode,
   initialSlideHeight,
   initialSlideWidth,
   onDragStart,
   opacityScale,
+  renderAnnounceSlideMessage,
   slideIndex,
   slideListMargin,
   slideOffset,
@@ -65,9 +66,12 @@ export default function Carousel({
   slidesToShow,
   slideWidth,
   speed,
+  style,
   swiping,
   transitionMode,
   vertical,
+  width,
+  withoutControls,
   wrapAround,
   zoomScale
 }) {
@@ -544,7 +548,7 @@ export default function Carousel({
 
   const handleClick = event => {
     // debugging:
-    previousSlide();
+    nextSlide();
 
     if (clickDisabled) {
       if (event.metaKey || event.shiftKey || event.altKey || event.ctrlKey) {
@@ -659,6 +663,55 @@ export default function Carousel({
     }
   }, []);
 
+  const renderControls = function() {
+    const controlsMap = [
+      { funcName: 'renderTopLeftControls', key: 'TopLeft' },
+      { funcName: 'renderTopCenterControls', key: 'TopCenter' },
+      { funcName: 'renderTopRightControls', key: 'TopRight' },
+      { funcName: 'renderCenterLeftControls', key: 'CenterLeft' },
+      { funcName: 'renderCenterCenterControls', key: 'CenterCenter' },
+      { funcName: 'renderCenterRightControls', key: 'CenterRight' },
+      { funcName: 'renderBottomLeftControls', key: 'BottomLeft' },
+      { funcName: 'renderBottomCenterControls', key: 'BottomCenter' },
+      { funcName: 'renderBottomRightControls', key: 'BottomRight' }
+    ];
+    if (withoutControls) {
+      return controlsMap.map(() => null);
+    }
+    return controlsMap.map(({ funcName, key }) => {
+      const func = funcName;
+      const controlChildren =
+        func &&
+        typeof func === 'function' &&
+        func({
+          cellAlign,
+          cellSpacing,
+          currentSlide,
+          frameWidth: frame.width,
+          goToSlide: index => goToSlide(index),
+          nextSlide: () => nextSlide(),
+          previousSlide: () => previousSlide(),
+          slideCount,
+          slidesToScroll: updateSlidesToScroll,
+          slidesToShow,
+          slideWidth,
+          wrapAround
+        });
+
+      return (
+        controlChildren && (
+          <div
+            className={`slider-control-${key.toLowerCase()}`}
+            style={getDecoratorStyles(key)}
+            key={key}
+          >
+            {controlChildren}
+          </div>
+        )
+      );
+    });
+  };
+
   const TransitionControl = Transitions[transitionMode];
   const touchEvents = getTouchEvents();
   const mouseEvents = getMouseEvents();
@@ -675,108 +728,118 @@ export default function Carousel({
         frame: {JSON.stringify(frame.width)} x {JSON.stringify(frame.height)}
       </p>
       <div
-        className="slider-frame"
-        ref={sliderFrame}
-        style={getFrameStyles(
-          frameOverflow,
-          vertical,
-          framePadding,
-          frame.width
-        )}
-        {...touchEvents}
-        {...mouseEvents}
-        onClick={handleClick}
+        className={['slider', className || ''].join(' ')}
+        style={Object.assign({}, getSliderStyles(width, height), style)}
       >
-        <Animate
-          show
-          start={{ tx: 0, ty: 0 }}
-          update={() => {
-            const { tx, ty } = getOffsetDeltas();
-            console.log('update!', tx, ty);
+        {!autoplay && (
+          <AnnounceSlide
+            message={renderAnnounceSlideMessage({ currentSlide, slideCount })}
+          />
+        )}
+        <div
+          className="slider-frame"
+          ref={sliderFrame}
+          style={getFrameStyles(
+            frameOverflow,
+            vertical,
+            framePadding,
+            frame.width
+          )}
+          {...touchEvents}
+          {...mouseEvents}
+          onClick={handleClick}
+        >
+          <Animate
+            show
+            start={{ tx: 0, ty: 0 }}
+            update={() => {
+              const { tx, ty } = getOffsetDeltas();
 
-            if (disableEdgeSwiping && !wrapAround && isEdgeSwiping()) {
-              return {};
-            } else {
-              const duration =
-                isDragging ||
-                (!isDragging && wrapping.reset && wrapAround) ||
-                disableAnimation ||
-                !hasInteraction
-                  ? 0
-                  : speed;
+              if (disableEdgeSwiping && !wrapAround && isEdgeSwiping()) {
+                return {};
+              } else {
+                const duration =
+                  isDragging ||
+                  (!isDragging && wrapping.reset && wrapAround) ||
+                  disableAnimation ||
+                  !hasInteraction
+                    ? 0
+                    : speed;
 
-              return {
-                tx,
-                ty,
-                timing: {
-                  duration,
-                  // TODO: use easeFunction
-                  ease: d3easing.easeCircleOut
-                },
-                events: {
-                  end: () => {
-                    const newOffset = getTargetLeft();
-                    if (newOffset !== currentSlideOffset) {
-                      console.log(
-                        'newOffset!!',
-                        newOffset,
-                        'currentSlideOffset',
-                        currentSlideOffset
-                      );
-                      setCurrentSlideOffset(newOffset);
-                      setWrapping({
-                        ...wrapping,
-                        isWrapping: false,
-                        reset: true
-                      });
-
-                      setTimeout(() => {
+                return {
+                  tx,
+                  ty,
+                  timing: {
+                    duration, // TODO: use easeFunction
+                    ease: d3easing.easeCircleOut
+                  },
+                  events: {
+                    end: () => {
+                      const newOffset = getTargetLeft();
+                      if (newOffset !== currentSlideOffset) {
+                        console.log(
+                          'newOffset!!',
+                          newOffset,
+                          'currentSlideOffset',
+                          currentSlideOffset
+                        );
+                        setCurrentSlideOffset(newOffset);
                         setWrapping({
                           ...wrapping,
                           isWrapping: false,
-                          reset: false
+                          reset: true
                         });
-                      }, 0);
+
+                        setTimeout(() => {
+                          setWrapping({
+                            ...wrapping,
+                            isWrapping: false,
+                            reset: false
+                          });
+                        }, 0);
+                      }
                     }
                   }
-                }
-              };
-            }
-          }}
-          children={({ tx, ty }) => (
-            <TransitionControl
-              animation={animation}
-              cellSpacing={cellSpacing}
-              currentSlide={currentSlide}
-              deltaX={tx}
-              deltaY={ty}
-              dragging={isDragging}
-              isWrappingAround={wrapping.isWrapping}
-              left={vertical ? 0 : currentSlideOffset}
-              opacityScale={opacityScale}
-              slideCount={slideCount}
-              slideHeight={dimensions.height}
-              slideListMargin={slideListMargin}
-              slideOffset={slideOffset}
-              slidesToShow={slidesToShow}
-              slideWidth={dimensions.width}
-              top={vertical ? currentSlideOffset : 0}
-              vertical={vertical}
-              wrapAround={wrapAround}
-              zoomScale={zoomScale}
-            >
-              {addAccessibility(validChildren, slidesToShow, currentSlide)}
-            </TransitionControl>
-          )}
-        />
-      </div>
+                };
+              }
+            }}
+            children={({ tx, ty }) => (
+              <TransitionControl
+                animation={animation}
+                cellSpacing={cellSpacing}
+                currentSlide={currentSlide}
+                deltaX={tx}
+                deltaY={ty}
+                dragging={isDragging}
+                isWrappingAround={wrapping.isWrapping}
+                left={vertical ? 0 : currentSlideOffset}
+                opacityScale={opacityScale}
+                slideCount={slideCount}
+                slideHeight={dimensions.height}
+                slideListMargin={slideListMargin}
+                slideOffset={slideOffset}
+                slidesToShow={slidesToShow}
+                slideWidth={dimensions.width}
+                top={vertical ? currentSlideOffset : 0}
+                vertical={vertical}
+                wrapAround={wrapAround}
+                zoomScale={zoomScale}
+              >
+                {addAccessibility(validChildren, slidesToShow, currentSlide)}
+              </TransitionControl>
+            )}
+          />
+        </div>
 
-      {autoGenerateStyleTag && (
-        <style
-          type="text/css"
-          dangerouslySetInnerHTML={{ __html: getImgTagStyles() }}
-        />
-      )}
+        {renderControls()}
+
+        {autoGenerateStyleTag && (
+          <style
+            type="text/css"
+            dangerouslySetInnerHTML={{ __html: getImgTagStyles() }}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -821,7 +884,7 @@ Carousel.propTypes = {
   renderTopRightControls: PropTypes.func,
   slideIndex: PropTypes.number,
   slideListMargin: PropTypes.number,
-  currentSlideOffset: PropTypes.number,
+  slideOffset: PropTypes.number,
   slidesToScroll: PropTypes.oneOfType([
     PropTypes.number,
     PropTypes.oneOf(['auto'])
@@ -864,7 +927,7 @@ Carousel.defaultProps = {
   renderCenterRightControls: props => <NextButton {...props} />,
   slideIndex: 0,
   slideListMargin: 10,
-  currentSlideOffset: 25,
+  slideOffset: 25,
   slidesToScroll: 1,
   slidesToShow: 1,
   slideWidth: 1,
@@ -877,3 +940,5 @@ Carousel.defaultProps = {
   withoutControls: false,
   wrapAround: false
 };
+
+export { NextButton, PreviousButton, PagingDots };
