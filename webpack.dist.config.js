@@ -1,4 +1,5 @@
 const path = require('path');
+const { StatsWriterPlugin } = require('webpack-stats-plugin');
 
 module.exports = {
   output: {
@@ -25,6 +26,13 @@ module.exports = {
       }
     ]
   },
+
+  plugins: [
+    new StatsWriterPlugin({
+      fields: ['assets', 'modules']
+    })
+  ],
+
   externals: [
     {
       react: {
