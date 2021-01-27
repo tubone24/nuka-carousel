@@ -2,45 +2,117 @@
 import React from 'react';
 
 import Carousel from '../../src/index';
-import { withKnobs, boolean, number, select } from '@storybook/addon-knobs';
 
 export default {
-  title: 'Example/Carousel',
-  component: Carousel,
-  decorators: [withKnobs]
+  title: 'Carousel',
+  component: Carousel
 };
 
-const getProps = () => ({
-  animation: select('animation', { Default: undefined, Zoom: 'zoom' }),
-  autoplay: boolean('autoplay', false),
-  cellAlign: select(
-    'cellAlign',
-    { Left: 'left', Center: 'center', Right: 'right' },
-    'left'
-  ),
-  cellSpacing: number('cellSpacing', 0),
-  heightMode: select(
-    'heightMode',
-    { Max: 'max', Current: 'current', First: 'first' },
-    'max'
-  ),
-  length: number('length', 6),
-  scrollMode: select('scrollMode', { Remainder: 'remainder', Page: 'page' }),
-  slideIndex: number('scrollIndex', 0),
-  slidesToScroll: number('slidesToScroll', 1),
-  slidesToShow: number('slidesToShow', 1),
-  transitionMode: select('transitionMode', {
-    Scroll: 'scroll',
-    Fade: 'fade',
-    Scroll3d: 'scroll3d'
-  }),
-  withoutControls: boolean('withoutControls', false),
-  wrapAround: boolean('wrapAround', false),
-  zoomScale: number('zoomScale', 0.5)
-});
+const colors = [
+  '7732bb',
+  '047cc0',
+  '00884b',
+  'e3bc13',
+  'db7c00',
+  'aa231f',
+  'e3bc13',
+  'db7c00',
+  'aa231f'
+];
 
-const slides = [1, 2, 3, 4, 5].map((index) => {
-  return <img key={index} src={`/demo/stories/assets/${index}.jpg`} />;
-});
+const slides = (args) =>
+  colors.map((color, index) => {
+    return (
+      <img
+        key={index}
+        src={`https://via.placeholder.com/400/${color}/ffffff/&text=slide${
+          index + 1
+        }`}
+        style={{
+          height: args.heightMode === 'current' ? 100 * (index + 1) : 400
+        }}
+      />
+    );
+  });
 
-export const Primary = () => <Carousel {...getProps()}>{slides}</Carousel>;
+const CarouselStory = ({ ...args }) => (
+  <Carousel {...args}>{slides(args)}</Carousel>
+);
+
+export const Primary = CarouselStory.bind({});
+Primary.args = {
+  animation: undefined,
+  autoplay: false,
+  cellAlign: 'left',
+  cellSpacing: 0,
+  heightMode: 'max',
+  scrollMode: 'remainder',
+  slideIndex: 1,
+  slidesToScroll: 1,
+  slidesToShow: 1,
+  transitionMode: 'scroll',
+  withoutControls: false,
+  wrapAround: false,
+  zoomScale: 0.5
+};
+Primary.argTypes = {
+  animation: {
+    control: {
+      type: 'select',
+      options: ['zoom']
+    }
+  },
+  cellAlign: {
+    control: {
+      type: 'select',
+      options: ['left', 'center', 'right']
+    }
+  },
+  heightMode: {
+    control: {
+      type: 'select',
+      options: ['max', 'current', 'first']
+    }
+  },
+  scrollMode: {
+    control: {
+      type: 'select',
+      options: ['remainder', 'page']
+    }
+  },
+  transitionMode: {
+    control: {
+      type: 'select',
+      options: ['scroll', 'fade', 'scroll3d']
+    }
+  }
+};
+
+export const ZoomAnimation = CarouselStory.bind({});
+ZoomAnimation.args = { animation: 'zoom' };
+
+export const HeightModeCurrent = CarouselStory.bind({});
+HeightModeCurrent.args = { heightMode: 'current' };
+
+export const ScrollModePage = CarouselStory.bind({});
+ScrollModePage.args = {
+  scrollMode: 'page',
+  slidesToShow: 4,
+  slidesToScroll: 4
+};
+
+export const ScrollModeRemainder = CarouselStory.bind({});
+ScrollModeRemainder.args = {
+  scrollMode: 'remainder',
+  slidesToShow: 4,
+  slidesToScroll: 4
+};
+
+export const FadeTransition = CarouselStory.bind({});
+FadeTransition.args = { transitionMode: 'fade' };
+
+export const CellSpacing = CarouselStory.bind({});
+CellSpacing.args = { cellSpacing: 15, slidesToShow: 1.5 };
+
+export const Vertical = CarouselStory.bind({});
+Vertical.args = { vertical: true };

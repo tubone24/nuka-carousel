@@ -258,7 +258,7 @@ export default function App() {
                   )
                 }
               >
-                Toggle Cellspacing {cellSpacing > 0 ? 'Off' : 'On'}
+                Toggle Cell Spacing {cellSpacing > 0 ? 'Off' : 'On'}
               </button>
             </div>
           </>
