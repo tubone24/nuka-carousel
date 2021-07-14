@@ -219,41 +219,42 @@ export const PagingDots = (props) => {
     pagingDotsStyle = {}
   } = props.defaultControlsConfig;
   return (
-    <ul className={pagingDotsContainerClassName} style={getListStyles()}>
-      {indexes.map((index, i) => {
-        let isActive = props.currentSlide === index;
-        // the below condition checks and sets navigation dots active if the current slide falls in the current index range
-        if (props.currentSlide < index && props.currentSlide > indexes[i - 1]) {
-          isActive = true;
-        }
-        return (
-          <li
-            key={index}
-            className={isActive ? 'paging-item active' : 'paging-item'}
-          >
-            <button
-              className={pagingDotsClassName}
-              type="button"
-              style={{
-                ...getButtonStyles(isActive),
-                ...pagingDotsStyle
-              }}
-              onClick={props.goToSlide.bind(null, index)}
-              aria-label={`slide ${index + 1} bullet`}
-            >
-              <svg
-                className="paging-dot"
-                width="6"
-                height="6"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <circle cx="3" cy="3" r="3" />
-              </svg>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+    null
+    // <ul className={pagingDotsContainerClassName} style={getListStyles()}>
+    //   {indexes.map((index, i) => {
+    //     let isActive = props.currentSlide === index;
+    //     // the below condition checks and sets navigation dots active if the current slide falls in the current index range
+    //     if (props.currentSlide < index && props.currentSlide > indexes[i - 1]) {
+    //       isActive = true;
+    //     }
+    //     return (
+    //       <li
+    //         key={index}
+    //         className={isActive ? 'paging-item active' : 'paging-item'}
+    //       >
+    //         <button
+    //           className={pagingDotsClassName}
+    //           type="button"
+    //           style={{
+    //             ...getButtonStyles(isActive),
+    //             ...pagingDotsStyle
+    //           }}
+    //           onClick={props.goToSlide.bind(null, index)}
+    //           aria-label={`slide ${index + 1} bullet`}
+    //         >
+    //           <svg
+    //             className="paging-dot"
+    //             width="6"
+    //             height="6"
+    //             aria-hidden="true"
+    //             focusable="false"
+    //           >
+    //             <circle cx="3" cy="3" r="3" />
+    //           </svg>
+    //         </button>
+    //       </li>
+    //     );
+    //   })}
+    // </ul>
   );
 };
